@@ -47,7 +47,7 @@ macro_rules! repository {
         impl $ident {
             $vis fn new() -> Self {
                 let pool = $crate::pool::get_db_pool();
-                
+
                 Self {
                     pool
                 }

@@ -1,7 +1,7 @@
-use types::filter_table::FilterTable;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse_macro_input;
+use types::filter_table::FilterTable;
 
 const CRATE_NAME_STR: &str = "sqlx_utils";
 

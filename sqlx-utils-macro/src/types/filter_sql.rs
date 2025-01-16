@@ -1,7 +1,7 @@
-use syn::parse::{Parse, ParseStream};
-use proc_macro2::Ident;
 use crate::types::columns::Columns;
 use crate::types::expression::Expression;
+use proc_macro2::Ident;
+use syn::parse::{Parse, ParseStream};
 
 /// Parses `SELECT * FROM example_table WHERE [conditions]`
 #[allow(dead_code)]

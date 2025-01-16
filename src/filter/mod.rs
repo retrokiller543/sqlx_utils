@@ -2,10 +2,9 @@ mod_def! {
     pub mod operators;
 }
 
-
+use crate::mod_def;
 use crate::traits::SqlFilter;
 use sqlx::QueryBuilder;
-use crate::mod_def;
 
 pub struct Filter<T>(T);
 
@@ -16,6 +15,7 @@ impl<T> Filter<T> {
     }
 }
 
+#[allow(clippy::should_implement_trait)]
 impl<'args, T: 'args> Filter<T>
 where
     T: SqlFilter<'args>,
@@ -58,17 +58,26 @@ where
         self.0.apply_filter(builder);
     }
     #[inline]
-    #[cfg(all(feature = "postgres", not(any(feature = "sqlite", feature = "mysql", feature = "any"))))]
+    #[cfg(all(
+        feature = "postgres",
+        not(any(feature = "sqlite", feature = "mysql", feature = "any"))
+    ))]
     fn apply_filter(self, builder: &mut QueryBuilder<'args, sqlx::Postgres>) {
         self.0.apply_filter(builder);
     }
     #[inline]
-    #[cfg(all(feature = "mysql", not(any(feature = "sqlite", feature = "any", feature = "postgres"))))]
+    #[cfg(all(
+        feature = "mysql",
+        not(any(feature = "sqlite", feature = "any", feature = "postgres"))
+    ))]
     fn apply_filter(self, builder: &mut QueryBuilder<'args, sqlx::MySql>) {
         self.0.apply_filter(builder);
     }
     #[inline]
-    #[cfg(all(feature = "sqlite", not(any(feature = "any", feature = "mysql", feature = "postgres"))))]
+    #[cfg(all(
+        feature = "sqlite",
+        not(any(feature = "any", feature = "mysql", feature = "postgres"))
+    ))]
     fn apply_filter(self, builder: &mut QueryBuilder<'args, sqlx::Sqlite>) {
         self.0.apply_filter(builder);
     }

@@ -1,11 +1,11 @@
-use quote::{quote, ToTokens};
-use proc_macro2::{Ident, TokenStream as TokenStream2};
-use syn_derive::Parse;
-use syn::{Attribute, Token, Visibility};
-use syn::token::Brace;
 use crate::types::columns::ColumnVal;
-use crate::types::{crate_name, database_type};
 use crate::types::filter_sql::FilterSql;
+use crate::types::{crate_name, database_type};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
+use quote::{ToTokens, quote};
+use syn::token::Brace;
+use syn::{Attribute, Token, Visibility};
+use syn_derive::Parse;
 
 #[derive(Parse)]
 #[allow(dead_code)]
@@ -26,7 +26,7 @@ pub(crate) struct FilterTable {
 impl ToTokens for FilterTable {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let crate_name = crate_name();
-        
+
         let Self {
             meta,
             vis,
@@ -144,7 +144,7 @@ impl ToTokens for FilterTable {
         /*let stmt = quote! {
             SELECT #columns FROM #table_name WHERE
         }.to_string();*/
-        
+
         let db_type = database_type();
 
         let expanded = quote! {

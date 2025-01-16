@@ -1,12 +1,12 @@
 #![allow(async_fn_in_trait)]
 
-pub mod macros;
-pub mod utils;
-pub mod filter;
-pub mod traits;
 pub mod error;
-pub mod types;
+pub mod filter;
+pub mod macros;
 pub mod pool;
+pub mod traits;
+pub mod types;
+pub mod utils;
 
+pub use error::{Error, Result};
 pub use sqlx_utils_macro::sql_filter;
-pub use error::{Result, Error};

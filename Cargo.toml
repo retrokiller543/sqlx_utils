@@ -16,8 +16,8 @@ futures = "0.3.31"
 tracing = "0.1.41"
 
 [features]
-default = ["postgres", "mysql"]
-sqlite = ["sqlx-utils-macro/sqlite", "sqlx/_sqlite"]
+default = ["any"]
+sqlite = ["sqlx-utils-macro/sqlite", "sqlx/sqlite"]
 any = ["sqlx-utils-macro/any", "sqlx/any"]
 postgres = ["sqlx-utils-macro/postgres", "sqlx/postgres"]
-mysql = ["sqlx-utils-macro/mysql", "sqlx-utils-macro/mysql"]
+mysql = ["sqlx-utils-macro/mysql", "sqlx/mysql"]

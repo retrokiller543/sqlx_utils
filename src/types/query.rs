@@ -8,4 +8,4 @@ pub type Query<'a> = sqlx::query::Query<'a, sqlx::Postgres, sqlx::postgres::PgAr
 pub type Query<'a> = sqlx::query::Query<'a, sqlx::MySql, sqlx::mysql::MySqlArguments>;
 
 #[cfg(all(feature = "sqlite", not(any(feature = "any", feature = "mysql", feature = "postgres"))))]
-pub type Query<'a> = sqlx::query::Query<'a, sqlx::Sqlite, sqlx::sqlite::Sqlite>;
+pub type Query<'a> = sqlx::query::Query<'a, sqlx::Sqlite, sqlx::sqlite::SqliteArguments<'a>>;

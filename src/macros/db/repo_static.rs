@@ -18,19 +18,19 @@ macro_rules! static_repo {
             }
         }
     };
-    
+
     ($vis:vis $ident:ident;) => {
         ::paste::paste! {
             $crate::static_repo!(
                 $vis $ident;
-                
+
                 [<init_ $ident:snake:lower>]() -> $ident {
                     $ident::new().await
                 }
             );
         }
     };*/
-    
+
     ($vis:vis $ident:ident;) => {
         ::paste::paste! {
             $vis static [<$ident:snake:upper>]: ::std::sync::LazyLock<$ident> = ::std::sync::LazyLock::new(|| {

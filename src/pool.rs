@@ -1,5 +1,5 @@
-use std::sync::OnceLock;
 use crate::types::Pool;
+use std::sync::OnceLock;
 
 pub static DB_POOL: OnceLock<Pool> = OnceLock::new();
 

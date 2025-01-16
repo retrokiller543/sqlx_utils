@@ -1,12 +1,12 @@
+use crate::CRATE_NAME_STR;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
-use crate::CRATE_NAME_STR;
 
-pub(crate) mod filter_table;
 pub(crate) mod columns;
-pub(crate) mod filter_sql;
 pub(crate) mod condition;
 pub(crate) mod expression;
+pub(crate) mod filter_sql;
+pub(crate) mod filter_table;
 pub(crate) mod sql_operator;
 
 #[inline]
@@ -44,4 +44,3 @@ fn database_type() -> TokenStream {
     }
 }
 */
-

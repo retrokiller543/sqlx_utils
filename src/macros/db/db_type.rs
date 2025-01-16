@@ -7,7 +7,10 @@ macro_rules! db_pool {
 }
 
 #[macro_export]
-#[cfg(all(feature = "postgres", not(any(feature = "sqlite", feature = "mysql", feature = "any"))))]
+#[cfg(all(
+    feature = "postgres",
+    not(any(feature = "sqlite", feature = "mysql", feature = "any"))
+))]
 macro_rules! db_pool {
     () => {
         ::sqlx::PgPool
@@ -15,7 +18,10 @@ macro_rules! db_pool {
 }
 
 #[macro_export]
-#[cfg(all(feature = "mysql", not(any(feature = "sqlite", feature = "any", feature = "postgres"))))]
+#[cfg(all(
+    feature = "mysql",
+    not(any(feature = "sqlite", feature = "any", feature = "postgres"))
+))]
 macro_rules! db_pool {
     () => {
         ::sqlx::MySqlPool
@@ -23,7 +29,10 @@ macro_rules! db_pool {
 }
 
 #[macro_export]
-#[cfg(all(feature = "sqlite", not(any(feature = "any", feature = "mysql", feature = "postgres"))))]
+#[cfg(all(
+    feature = "sqlite",
+    not(any(feature = "any", feature = "mysql", feature = "postgres"))
+))]
 macro_rules! db_pool {
     () => {
         ::sqlx::SqlitePool

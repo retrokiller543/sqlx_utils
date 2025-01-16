@@ -1,8 +1,8 @@
-use quote::{quote, ToTokens};
-use proc_macro2::{Ident, TokenStream as TokenStream2};
-use syn::parse::{Parse, ParseStream};
-use syn::Token;
 use crate::types::crate_name;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
+use quote::{ToTokens, quote};
+use syn::Token;
+use syn::parse::{Parse, ParseStream};
 
 pub(crate) enum SqlOperator {
     Equals,
@@ -68,7 +68,7 @@ impl Parse for SqlOperator {
 impl ToTokens for SqlOperator {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let crate_name = crate_name();
-        
+
         match self {
             SqlOperator::Equals => quote! {::#crate_name::filter::equals},
             SqlOperator::NotEquals => quote! {::#crate_name::filter::not_equal},

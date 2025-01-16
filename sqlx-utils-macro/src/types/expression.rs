@@ -1,11 +1,11 @@
-use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{format_ident, quote, ToTokens};
-use syn::{parse_quote, TypePath};
-use syn::parse::{Parse, ParseStream};
-use syn::spanned::Spanned;
 use crate::types::columns::ColumnVal;
 use crate::types::condition::Condition;
 use crate::types::crate_name;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
+use quote::{ToTokens, format_ident, quote};
+use syn::parse::{Parse, ParseStream};
+use syn::spanned::Spanned;
+use syn::{TypePath, parse_quote};
 
 pub(crate) enum Expression {
     And(Box<Expression>, Box<Expression>),
@@ -69,7 +69,7 @@ impl ToTokens for Expression {
         let filter_expr = match self {
             Expression::Condition(c) => {
                 let crate_name = crate_name();
-                
+
                 let operator = &c.operator;
                 let column = &c.column_name;
 
