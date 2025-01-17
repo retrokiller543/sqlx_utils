@@ -1,5 +1,4 @@
 #[macro_export]
-#[cfg(feature = "any")]
 macro_rules! sql_operator {
     ($vis:vis $ident:ident, $lit:literal) => {
         $vis struct $ident<T> {

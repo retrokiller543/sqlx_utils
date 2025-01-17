@@ -2,7 +2,7 @@
 
 pub mod error;
 pub mod filter;
-pub mod macros;
+mod macros;
 pub mod pool;
 pub mod traits;
 pub mod types;

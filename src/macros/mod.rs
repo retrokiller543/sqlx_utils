@@ -1,4 +1,4 @@
-pub mod db;
+mod db;
 
 /// Creates a new database repository, either just creates a basic new type and statics to interact
 /// with the main database pool.

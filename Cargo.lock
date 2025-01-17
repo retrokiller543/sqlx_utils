@@ -1367,7 +1367,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-utils"
-version = "1.0.0-1"
+version = "1.0.0-2"
 dependencies = [
  "futures",
  "paste",
@@ -1380,7 +1380,7 @@ dependencies = [
 
 [[package]]
 name = "sqlx-utils-macro"
-version = "1.0.0-1"
+version = "1.0.0-2"
 dependencies = [
  "proc-macro-error",
  "proc-macro2",
