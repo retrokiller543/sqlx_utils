@@ -1,0 +1,2 @@
+[registries.gitea]
+index = "sparse+https://reasonably-happy-moose.ngrok-free.app/api/packages/tosic.killer/cargo/"

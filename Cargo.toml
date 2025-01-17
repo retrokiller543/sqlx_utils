@@ -23,7 +23,7 @@ license.workspace = true
 [dependencies]
 paste = "1.0.15"
 sqlx = "0.8.3"
-sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.0.0-1" }
+sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.0.0-1", registry = "gitea" }
 thiserror = "2.0.11"
 tokio = { version = "1.43.0", features = ["full"] }
 futures = "0.3.31"
