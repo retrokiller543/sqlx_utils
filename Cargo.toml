@@ -1,15 +1,29 @@
 [workspace]
 members = ["sqlx-utils-macro"]
 
+[workspace.package]
+version = "1.0.0-1"
+description = "Utilities for working with SQLx in a structured and efficient way, both when developing and running"
+repository = "https://github.com/retrokiller543/sqlx_utils"
+authors = ["Emil Schütt <emil.schutt@gmail.com>"]
+readme = "README.md"
+license = "MIT"
+edition = "2024"
+
 [package]
 name = "sqlx-utils"
-version = "1.0.0-0"
-edition = "2024"
+version = "1.0.0-1"
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme.workspace = true
+license.workspace = true
 
 [dependencies]
 paste = "1.0.15"
 sqlx = "0.8.3"
-sqlx-utils-macro = { path = "./sqlx-utils-macro" }
+sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.0.0-1" }
 thiserror = "2.0.11"
 tokio = { version = "1.43.0", features = ["full"] }
 futures = "0.3.31"

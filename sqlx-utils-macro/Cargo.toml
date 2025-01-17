@@ -1,7 +1,12 @@
 [package]
 name = "sqlx-utils-macro"
-version = "1.0.0-0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
+description.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme.workspace = true
+license.workspace = true
 
 [lib]
 proc-macro = true
