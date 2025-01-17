@@ -146,6 +146,18 @@ impl ToTokens for FilterTable {
         }.to_string();*/
 
         let db_type = database_type();
+        
+        let should_apply_filter_impl = if optional_fields.len() > 0 {
+            let mut impl_tokens = Vec::new();
+            
+            for (ident, _, _) in optional_fields {
+                impl_tokens.push(quote! {self.#ident.is_some()})
+            }
+            
+            quote! {#(#impl_tokens)||*}
+        } else {
+            quote! {true}
+        };
 
         let expanded = quote! {
             impl<'args> #crate_name::traits::SqlFilter<'args> for #name {
@@ -156,7 +168,7 @@ impl ToTokens for FilterTable {
 
                 #[inline]
                 fn should_apply_filter(&self) -> bool {
-                    true
+                    #should_apply_filter_impl
                 }
             }
         };
