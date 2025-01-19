@@ -8,7 +8,7 @@ repository = "https://github.com/retrokiller543/sqlx_utils"
 authors = ["Emil Schütt <emil.schutt@gmail.com>"]
 readme = "README.md"
 license = "MIT"
-edition = "2024"
+edition = "2021"
 
 [package]
 name = "sqlx-utils"
