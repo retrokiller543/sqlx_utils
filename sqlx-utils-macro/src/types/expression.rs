@@ -2,10 +2,10 @@ use crate::types::columns::ColumnVal;
 use crate::types::condition::Condition;
 use crate::types::crate_name;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{ToTokens, format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{TypePath, parse_quote};
+use syn::{parse_quote, TypePath};
 
 pub(crate) enum Expression {
     And(Box<Expression>, Box<Expression>),
@@ -46,15 +46,15 @@ impl Parse for Expression {
 
         let op: Option<Ident> = input.parse()?;
         match op.map(|i| i.to_string().to_uppercase()) {
-            Some(op) if op == String::from("AND") => {
+            Some(op) if op == *"AND" => {
                 let right = Self::parse(input)?;
                 Ok(Expression::And(Box::new(left), Box::new(right)))
             }
-            Some(op) if op == String::from("OR") => {
+            Some(op) if op == *"OR" => {
                 let right = Self::parse(input)?;
                 Ok(Expression::Or(Box::new(left), Box::new(right)))
             }
-            Some(op) if op == String::from("NOT") => {
+            Some(op) if op == *"NOT" => {
                 let expr = Self::parse(input)?;
                 Ok(Expression::Not(Box::new(expr)))
             }
@@ -79,7 +79,7 @@ impl ToTokens for Expression {
                     let ident = &seg.ident;
                     let new_ident = format_ident!("{}_raw", ident);
 
-                    quote! { #crate_name::traits::#new_ident(stringify!(#column), #crate_name::traits::Raw(#lit)) }
+                    quote! { ::#crate_name::filter::#new_ident(stringify!(#column), ::#crate_name::filter::Raw(#lit)) }
                 } else {
                     let rust_name = c.rust_name();
 

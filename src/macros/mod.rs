@@ -74,7 +74,7 @@ macro_rules! repository {
             }
 
             #[inline]
-            fn delete_one_by_id(_model: &<$model as Model>::Id) -> $crate::types::Query {
+            fn delete_one_by_id(_model: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query {
                 unimplemented!("Delete is not implemented for this repository");
             }
         );
@@ -101,7 +101,7 @@ macro_rules! repository {
             }
 
             #[inline]
-            fn delete_one_by_id(_model: &<$model as Model>::Id) -> $crate::types::Query {
+            fn delete_one_by_id(_model: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query {
                 unimplemented!("Delete is not implemented for this repository");
             }
 
@@ -130,7 +130,7 @@ macro_rules! repository {
             fn update_one($model_name: &$model) -> $crate::types::Query $block
 
             #[inline]
-            fn delete_one_by_id(_model: &<$model as Model>::Id) -> $crate::types::Query {
+            fn delete_one_by_id(_model: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query {
                 unimplemented!("Delete is not implemented for this repository");
             }
 
@@ -161,7 +161,7 @@ macro_rules! repository {
             }
 
             #[inline]
-            fn delete_one_by_id($id_name: &<$model as Model>::Id) -> $crate::types::Query $block
+            fn delete_one_by_id($id_name: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query $block
 
             $($tokens)*
         );
@@ -189,7 +189,7 @@ macro_rules! repository {
             fn update_one($model_name: &$model) -> $crate::types::Query $update_block
 
             #[inline]
-            fn delete_one_by_id($id_name: &<$model as Model>::Id) -> $crate::types::Query $delete_block
+            fn delete_one_by_id($id_name: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query $delete_block
 
             $($tokens)*
         );
@@ -216,7 +216,7 @@ macro_rules! repository {
             fn update_one($update_model_name_name: &$model) -> $crate::types::Query $update_block
 
             #[inline]
-            fn delete_one_by_id($id_name: &<$model as Model>::Id) -> $crate::types::Query $delete_block
+            fn delete_one_by_id($id_name: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query $delete_block
 
             $($tokens)*
         );
@@ -242,7 +242,7 @@ macro_rules! repository {
             fn update_one($update_model_name_name: &$model) -> $crate::types::Query $update_block
 
             #[inline]
-            fn delete_one_by_id(_: &<$model as Model>::Id) -> $crate::types::Query {
+            fn delete_one_by_id(_: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query {
                 unimplemented!("Delete is not implemented for this repository");
             }
 
@@ -272,7 +272,7 @@ macro_rules! repository {
             }
 
             #[inline]
-            fn delete_one_by_id($id_name: &<$model as Model>::Id) -> $crate::types::Query $delete_block
+            fn delete_one_by_id($id_name: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query $delete_block
 
             $($tokens)*
         );

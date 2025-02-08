@@ -2,7 +2,7 @@ use crate::types::columns::ColumnVal;
 use crate::types::filter_sql::FilterSql;
 use crate::types::{crate_name, database_type};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{ToTokens, quote};
+use quote::{quote, ToTokens};
 use syn::token::Brace;
 use syn::{Attribute, Token, Visibility};
 use syn_derive::Parse;
@@ -51,11 +51,7 @@ impl ToTokens for FilterTable {
         let fields = fields
             .iter()
             .filter(|(_, ty, _)| {
-                if let ColumnVal::Type(_) = ty {
-                    true
-                } else {
-                    false
-                }
+                matches!(ty, ColumnVal::Type(_))
             })
             .collect::<Vec<_>>();
 
@@ -146,14 +142,14 @@ impl ToTokens for FilterTable {
         }.to_string();*/
 
         let db_type = database_type();
-        
-        let should_apply_filter_impl = if optional_fields.len() > 0 {
+
+        let should_apply_filter_impl = if !optional_fields.is_empty() {
             let mut impl_tokens = Vec::new();
-            
+
             for (ident, _, _) in optional_fields {
                 impl_tokens.push(quote! {self.#ident.is_some()})
             }
-            
+
             quote! {#(#impl_tokens)||*}
         } else {
             quote! {true}

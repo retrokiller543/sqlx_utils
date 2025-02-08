@@ -1,8 +1,8 @@
 use crate::types::columns::ColumnVal;
 use crate::types::sql_operator::SqlOperator;
 use proc_macro2::Ident;
-use syn::Token;
 use syn::parse::{Parse, ParseStream};
+use syn::Token;
 
 /// Parses `example_col LIKE String`
 pub(crate) struct Condition {

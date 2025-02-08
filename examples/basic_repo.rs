@@ -5,9 +5,9 @@ use sqlx_utils::pool::initialize_db_pool;
 use sqlx_utils::repository;
 use sqlx_utils::traits::{Model, Repository};
 use sqlx_utils::types::PoolOptions;
+use sqlx_utils_macro::sql_filter;
 use std::sync::LazyLock;
 use std::time::Duration;
-use sqlx_utils_macro::sql_filter;
 
 pub static DATABASE_URL: LazyLock<String> =
     LazyLock::new(|| std::env::var("DATABASE_URL").expect("failed to get env var"));
