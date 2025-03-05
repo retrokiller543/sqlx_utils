@@ -1,5 +1,7 @@
 //! [`Repository`] Trait to define a database repository
 
+mod delete;
+
 mod_def! {
     pub mod insert;
     pub mod update;
