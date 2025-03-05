@@ -1,9 +1,18 @@
 //! [`Repository`] Trait to define a database repository
 
+mod_def! {
+    pub mod insert;
+    pub mod update;
+    pub mod save;
+    pub mod select;
+}
+
+
 use crate::traits::model::Model;
 use crate::traits::sql_filter::SqlFilter;
 use crate::utils::batch::{BatchOperator, DEFAULT_BATCH_SIZE};
 use std::future::Future;
+use crate::mod_def;
 use crate::types::Query;
 
 /// A trait that provides a standardized interface for database operations, implementing the Repository pattern
