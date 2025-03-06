@@ -67,16 +67,16 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 /// repository! {
 ///     UserRepository<User>;
 ///
-///     // Implementation will go here
+///     // if you need to override any method other than `Repository::pool` they will go here
 /// }
 ///
 /// repository_insert! {
 ///     UserRepository<User>;
 ///
-///     fn insert_query(user) {
+///     insert_query(user) {
 ///         sqlx::query("INSERT INTO users (name) VALUES ($1)")
 ///             .bind(&user.name)
-///     };
+///     }
 /// }
 /// ```
 ///

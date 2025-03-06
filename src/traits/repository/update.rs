@@ -68,7 +68,7 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 /// repository! {
 ///     UserRepository<User>;
 ///
-///     // Implementation will go here
+///     // if you need to override any method other than `Repository::pool` they will go here
 /// }
 ///
 /// repository_update! {

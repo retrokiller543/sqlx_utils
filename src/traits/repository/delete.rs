@@ -1,8 +1,10 @@
 //! Trait for adding delete capabilities to a repository
 
+use sqlx::Executor;
+use crate::prelude::{Database, SqlFilter};
 use crate::traits::{Model, Repository};
 use crate::types::Query;
-use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
+use crate::utils::{tracing_debug_log, BatchOperator, DEFAULT_BATCH_SIZE};
 
 /// Trait for repositories that can delete records from the database.
 ///
@@ -19,7 +21,8 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 ///
 /// Basic implementation:
 /// ```rust
-/// # use sqlx_utils::traits::{Model, Repository, DeleteRepository};
+/// # use sqlx_utils::prelude::SqlFilter;
+/// use sqlx_utils::traits::{Model, Repository, DeleteRepository};
 /// # use sqlx_utils::types::{Pool, Query};
 /// # struct User { id: i32, name: String }
 /// # impl Model for User {
@@ -32,9 +35,20 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 /// # }
 ///
 /// impl DeleteRepository<User> for UserRepository {
-///     fn delete_query_by_id(id: &i32) -> Query<'_> {
+///     fn delete_by_id_query(id: &i32) -> Query<'_> {
 ///         sqlx::query("DELETE FROM users WHERE id = $1")
 ///             .bind(id)
+///     }
+///
+///     fn delete_by_filter_query<'args>(filter: impl SqlFilter<'args>) -> Query<'args> {
+///         let mut builder = sqlx::query_builder::QueryBuilder::new("DELETE FROM users");
+///
+///         if filter.should_apply_filter() {
+///             builder.push("WHERE ");
+///             filter.apply_filter(&mut builder);
+///         }
+///
+///         builder.build()
 ///     }
 /// }
 ///
@@ -45,7 +59,7 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 ///
 /// // Delete multiple users
 /// let ids = vec![1, 2, 3];
-/// repo.delete_many(ids).await?;
+/// repo.delete_many_by_id(ids).await?;
 /// # Ok(())
 /// # }
 /// ```
@@ -64,13 +78,13 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 /// repository! {
 ///     UserRepository<User>;
 ///
-///     // Implementation will go here
+///     // if you need to override any method other than `Repository::pool` they will go here
 /// }
 ///
 /// repository_delete! {
 ///     UserRepository<User>;
 ///
-///     delete_query_by_id(id) {
+///     delete_by_id_query(id) {
 ///         sqlx::query("DELETE FROM users WHERE id = $1")
 ///             .bind(id)
 ///     }
@@ -79,11 +93,11 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 ///
 /// # Implementation Notes
 ///
-/// 1. Required method: [`delete_query_by_id`](DeleteRepository::delete_query_by_id) - Defines how to create a deletion query for a model ID
+/// 1. Required method: [`delete_by_id_query`](DeleteRepository::delete_by_id_query) - Defines how to create a deletion query for a model ID
 /// 2. Provided methods:
 ///    - [`delete_by_id`](DeleteRepository::delete_by_id) - Deletes a single record by ID
-///    - [`delete_many`](DeleteRepository::delete_many) - Deletes multiple records using the default batch size
-///    - [`delete_batch`](DeleteRepository::delete_batch) - Deletes multiple records with a custom batch size
+///    - [`delete_many_by_id`](DeleteRepository::delete_many_by_id) - Deletes multiple records by id using the default batch size
+///    - [`delete_batch_by_id`](DeleteRepository::delete_batch_by_id) - Deletes multiple records by id with a custom batch size
 /// 3. All batch operations use transactions to ensure data consistency
 /// 4. Performance is optimized through batching and connection pooling
 /// 5. Consider implementing soft deletes if required by your application
@@ -113,11 +127,73 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     /// 1. Handling soft deletes if required
     /// 2. Checking foreign key constraints
     /// 3. Implementing cascading deletes if needed
-    fn delete_query_by_id(id: &M::Id) -> Query<'_>;
+    fn delete_by_id_query(id: &M::Id) -> Query<'_>;
+
+    /// Creates a SQL query to delete a record by a given [`SqlFilter`].
+    ///
+    /// This method generates a DELETE statement that will remove all records that match a given [`SqlFilter`]. It's designed to be both safe
+    /// and efficient by using parameterized queries. The query can do a soft delete or a complete remove of it,
+    /// that detail is up to the implementor, the rest of the Trait expects the query to not return anything however and the query should reflect that.
+    ///
+    /// # Parameters
+    ///
+    /// * `filter` - The filter used when generating the query.
+    ///
+    /// # Returns
+    ///
+    /// * [`Query`] - A prepared SQL query to DELETE records or soft delete them
+    ///
+    /// # Implementation Notes
+    ///
+    /// Consider:
+    /// 1. Handling soft deletes if required
+    /// 2. Checking foreign key constraints
+    /// 3. Implementing cascading deletes if needed
+    fn delete_by_filter_query<'args>(filter: impl SqlFilter<'args>) -> Query<'args>;
+
+    tracing_debug_log! {
+        [skip_all, Self::repository_span(), "delete_by_id",]
+        /// Removes a single record from the database by its identifier.
+        ///
+        /// This method executes the deletion query generated by [`delete_by_id_query`](Self::delete_by_id_query) and uses the [`Executor`] `tx` for doing it. It provides
+        /// a simple interface for removing individual records while handling all necessary database
+        /// interactions and error management.
+        ///
+        /// # Parameters
+        ///
+        /// * `tx` - The executor to use for the query
+        /// * `id` - Any value that can be converted into the model's ID type
+        ///
+        /// # Returns
+        ///
+        /// * [`crate::Result<()>`](crate::Result) - Success if the deletion was executed, or an error if the operation failed
+        ///
+        /// # Example
+        ///
+        /// ```no_compile
+        /// async fn remove_user(repo: &UserRepository, user_id: i32) -> crate::Result<()> {
+        ///     repo.delete_by_id_with_executor(repo.pool(), user_id).await
+        /// }
+        /// ```
+        #[inline(always)]
+        async fn delete_by_id_with_executor<E>(
+            &self,
+            tx: E,
+            id: impl Into<M::Id>
+        ) -> crate::Result<()>
+        where
+            E: for<'c> Executor<'c, Database = Database>,
+        {
+             Self::delete_by_id_query(&id.into())
+                .execute(tx)
+                .await?;
+            Ok(())
+        }
+    }
 
     /// Removes a single record from the database by its identifier.
     ///
-    /// This method executes the deletion query generated by [`delete_query_by_id`](Self::delete_query_by_id). It provides
+    /// This method executes the deletion query generated by [`delete_by_id_query`](Self::delete_by_id_query). It provides
     /// a simple interface for removing individual records while handling all necessary database
     /// interactions and error management.
     ///
@@ -136,17 +212,14 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     ///     repo.delete_by_id(user_id).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
+    #[inline(always)]
     async fn delete_by_id(&self, id: impl Into<M::Id>) -> crate::Result<()> {
-        Self::delete_query_by_id(&id.into())
-            .execute(self.pool())
-            .await?;
-        Ok(())
+        self.delete_by_id_with_executor(self.pool(), id).await
     }
 
     /// Deletes multiple records using the default batch size.
     ///
-    /// This is a convenience wrapper around [`delete_batch`](Self::delete_batch) that uses [`DEFAULT_BATCH_SIZE`].
+    /// This is a convenience wrapper around [`delete_batch`](Self::delete_batch_by_id) that uses [`DEFAULT_BATCH_SIZE`].
     /// It provides a simpler interface for bulk deletions when the default batch size
     /// is appropriate.
     ///
@@ -157,46 +230,118 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all deletions were executed, or an error if any operation failed
-    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
-    async fn delete_many(&self, ids: impl IntoIterator<Item = M::Id>) -> crate::Result<()> {
-        <Self as DeleteRepository<M>>::delete_batch::<DEFAULT_BATCH_SIZE>(self, ids).await
+    #[inline(always)]
+    async fn delete_many_by_id(&self, ids: impl IntoIterator<Item = M::Id>) -> crate::Result<()> {
+        <Self as DeleteRepository<M>>::delete_batch_by_id::<DEFAULT_BATCH_SIZE>(self, ids).await
     }
 
-    /// Performs a batched deletion operation with a specified batch size.
+    tracing_debug_log! {
+        [skip_all, Self::repository_span(), "delete_batch_by_id",]
+        /// Performs a batched deletion operation with a specified batch size.
+        ///
+        /// Similar to other batch operations, this method uses [`BatchOperator`] to efficiently
+        /// process large numbers of deletions in chunks, maintaining optimal performance
+        /// and preventing resource exhaustion.
+        ///
+        /// # Type Parameters
+        ///
+        /// * `N` - The size of each batch to process
+        ///
+        /// # Parameters
+        ///
+        /// * `ids` - An iterator yielding IDs of records to delete
+        ///
+        /// # Returns
+        ///
+        /// * [`crate::Result<()>`](crate::Result) - Success if all batches were processed, or an error if any operation failed
+        ///
+        /// # Implementation Details
+        ///
+        /// The method:
+        /// 1. Chunks the input IDs into batches of size N
+        /// 2. Processes each batch in a transaction using [`delete_query_by_id`](Self::delete_by_id_query)
+        /// 3. Maintains ACID properties within each batch
+        ///
+        /// # Performance Considerations
+        ///
+        /// Consider batch size carefully:
+        /// - Too small: More overhead from multiple transactions
+        /// - Too large: Higher memory usage and longer transaction times
+        #[inline(always)]
+        async fn delete_batch_by_id<const N: usize>(
+            &self,
+            ids: impl IntoIterator<Item = M::Id>,
+        ) -> crate::Result<()> {
+            let span = tracing::Span::current();
+            span.record("BATCH_SIZE", N);
+
+            BatchOperator::<M::Id, N>::execute_query(ids, self.pool(), Self::delete_by_id_query).await
+        }
+    }
+
+    tracing_debug_log! {
+        [skip_all, Self::repository_span(), "delete_by_filter",]
+        /// Removes records from the database by a filter.
+        ///
+        /// This method executes the deletion query generated by [`delete_by_filter_query`](Self::delete_by_filter_query)
+        /// and uses the [`Executor`] `tx` for doing it. It provides a simple interface for removing records with a filter
+        /// while handling all necessary database interactions and error management.
+        ///
+        /// # Parameters
+        ///
+        /// * `tx` - The executor to use for the query
+        /// * `filter` - A [`SqlFilter`] to define what records should be deleted
+        ///
+        /// # Returns
+        ///
+        /// * [`crate::Result<()>`](crate::Result) - Success if the deletion was executed, or an error if the operation failed
+        ///
+        /// # Example
+        ///
+        /// ```no_compile
+        /// async fn remove_user(repo: &UserRepository, filter: impl SqlFilter<'_>) -> crate::Result<()> {
+        ///     repo.delete_by_filter_with_executor(repo.pool(), filter).await
+        /// }
+        /// ```
+        #[inline(always)]
+        async fn delete_by_filter_with_executor<E>(
+            &self,
+            tx: E,
+            filter: impl SqlFilter<'_>
+        ) -> crate::Result<()>
+        where
+            E: for<'c> Executor<'c, Database = Database>,
+        {
+             Self::delete_by_filter_query(filter)
+                .execute(tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Removes records from the database by a filter.
     ///
-    /// Similar to other batch operations, this method uses [`BatchOperator`] to efficiently
-    /// process large numbers of deletions in chunks, maintaining optimal performance
-    /// and preventing resource exhaustion.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `N` - The size of each batch to process
+    /// This method executes the deletion query generated by [`delete_by_filter_query`](Self::delete_by_filter_query)
+    /// and uses the [`Repository::pool`] as a [`Executor`]. It provides a simple interface for removing records with a filter
+    /// while handling all necessary database interactions and error management.
     ///
     /// # Parameters
     ///
-    /// * `ids` - An iterator yielding IDs of records to delete
+    /// * `filter` - A [`SqlFilter`] to define what records should be deleted
     ///
     /// # Returns
     ///
-    /// * [`crate::Result<()>`](crate::Result) - Success if all batches were processed, or an error if any operation failed
+    /// * [`crate::Result<()>`](crate::Result) - Success if the deletion was executed, or an error if the operation failed
     ///
-    /// # Implementation Details
+    /// # Example
     ///
-    /// The method:
-    /// 1. Chunks the input IDs into batches of size N
-    /// 2. Processes each batch in a transaction using [`delete_query_by_id`](Self::delete_query_by_id)
-    /// 3. Maintains ACID properties within each batch
-    ///
-    /// # Performance Considerations
-    ///
-    /// Consider batch size carefully:
-    /// - Too small: More overhead from multiple transactions
-    /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
-    async fn delete_batch<const N: usize>(
-        &self,
-        ids: impl IntoIterator<Item = M::Id>,
-    ) -> crate::Result<()> {
-        BatchOperator::<M::Id, N>::execute_query(ids, self.pool(), Self::delete_query_by_id).await
+    /// ```no_compile
+    /// async fn remove_user(repo: &UserRepository, filter: impl SqlFilter<'_>) -> crate::Result<()> {
+    ///     repo.delete_by_filter(filter).await
+    /// }
+    /// ```
+    #[inline(always)]
+    async fn delete_by_filter(&self, filter: impl SqlFilter<'_>) -> crate::Result<()> {
+        self.delete_by_filter_with_executor(self.pool(), filter).await
     }
 }
