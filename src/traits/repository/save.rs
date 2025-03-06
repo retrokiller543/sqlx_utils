@@ -1,7 +1,9 @@
 //! Trait for automatically insert or update based on the presence of an ID.
 
+use crate::prelude::Database;
 use crate::traits::{InsertableRepository, Model, UpdatableRepository};
-use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
+use crate::utils::{tracing_debug_log, BatchOperator, DEFAULT_BATCH_SIZE};
+use sqlx::Executor;
 
 /// Trait for repositories that can intelligently save records by either inserting or updating them.
 ///
@@ -73,7 +75,7 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 ///
 /// 1. This trait is automatically implemented for any type that implements both
 ///    [`InsertableRepository`] and [`UpdatableRepository`]
-/// 2. The [`save`](SaveRepository::save) method checks [`Model::get_id()`] to determine whether to insert or update
+/// 2. The [`save`](SaveRepository::save_with_executor) method checks [`Model::get_id()`] to determine whether to insert or update
 /// 3. The batch methods intelligently sort models into separate insert and update operations
 /// 4. Where possible, insert and update operations within a batch are executed concurrently
 ///    for optimal performance
@@ -83,6 +85,48 @@ use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
     message = "`{Self}` must implement both `InsertableRepository<{M}>` and `UpdatableRepository<{M}>` to gain `SaveRepository<{M}>` capabilities"
 )]
 pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepository<M> {
+    tracing_debug_log! {
+        [skip_all, Self::repository_span(), "save",]
+        /// Intelligently persists a model instance by either inserting or updating using the [`Executor`] `tx`.
+        ///
+        /// This method determines the appropriate operation based on whether the model
+        /// has an ID:
+        /// - If the model has no ID, it performs an insertion
+        /// - If the model has an ID, it performs an update
+        ///
+        /// # Parameters
+        ///
+        /// * `tx` - The executor to use for the query
+        /// * `model` - A reference to the model instance to save
+        ///
+        /// # Returns
+        ///
+        /// * [`crate::Result<()>`](crate::Result) - Success if the operation was executed, or an error if it failed
+        ///
+        /// # Example
+        ///
+        /// ```no_compile
+        /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
+        ///     repo.save(user).await // Will insert or update based on user.id
+        /// }
+        /// ```
+        #[inline]
+        async fn save_with_executor<E>(
+            &self,
+            tx: E,
+            model: &M
+        ) -> crate::Result<()>
+        where
+            E: for<'c> Executor<'c, Database = Database>,
+        {
+             if model.get_id().is_none() {
+                <Self as InsertableRepository<M>>::insert_with_executor(self, tx, model).await
+            } else {
+                <Self as UpdatableRepository<M>>::update_with_executor(self, tx, model).await
+            }
+        }
+    }
+
     /// Intelligently persists a model instance by either inserting or updating.
     ///
     /// This method determines the appropriate operation based on whether the model
@@ -105,13 +149,9 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     ///     repo.save(user).await // Will insert or update based on user.id
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
+    #[inline(always)]
     async fn save(&self, model: &M) -> crate::Result<()> {
-        if model.get_id().is_none() {
-            <Self as InsertableRepository<M>>::insert(self, model).await
-        } else {
-            <Self as UpdatableRepository<M>>::update(self, model).await
-        }
+        self.save_with_executor(self.pool(), model).await
     }
 
     /// Saves multiple models using the default batch size.
@@ -127,83 +167,87 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all operations were executed, or an error if any failed
-    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     #[inline]
     async fn save_all(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
         <Self as SaveRepository<M>>::save_batch::<DEFAULT_BATCH_SIZE>(self, models).await
     }
 
-    /// Performs an intelligent batched save operation with a specified batch size.
-    ///
-    /// This is the most sophisticated batch operation, efficiently handling both
-    /// insertions and updates in the same operation. It sorts models based on
-    /// whether they need insertion or update, then processes them optimally.
-    ///
-    /// # Type Parameters
-    ///
-    /// * `N` - The size of each batch to process
-    ///
-    /// # Parameters
-    ///
-    /// * `models` - An iterator yielding model instances to save
-    ///
-    /// # Returns
-    ///
-    /// * [`crate::Result<()>`](crate::Result) - Success if all batches were processed, or an error if any operation failed
-    ///
-    /// # Implementation Details
-    ///
-    /// The method:
-    /// 1. Splits each batch into models requiring insertion vs update
-    /// 2. Processes insertions and updates concurrently when possible
-    /// 3. Handles empty cases efficiently
-    /// 4. Maintains transactional integrity within each batch
-    ///
-    /// # Performance Features
-    ///
-    /// - Concurrent processing of inserts and updates
-    /// - Efficient batch size management
-    /// - Smart handling of empty cases
-    /// - Transaction management for data consistency
-    ///
-    /// # Performance Considerations
-    ///
-    /// Consider batch size carefully:
-    /// - Too small: More overhead from multiple transactions
-    /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
-    async fn save_batch<const N: usize>(
-        &self,
-        models: impl IntoIterator<Item = M>,
-    ) -> crate::Result<()> {
-        BatchOperator::<M, N>::execute_batch(models, |batch| async {
-            let mut update = Vec::new();
-            let mut insert = Vec::new();
+    tracing_debug_log! {
+        [skip_all, Self::repository_span(), "save_batch",]
+        /// Performs an intelligent batched save operation with a specified batch size.
+        ///
+        /// This is the most sophisticated batch operation, efficiently handling both
+        /// insertions and updates in the same operation. It sorts models based on
+        /// whether they need insertion or update, then processes them optimally.
+        ///
+        /// # Type Parameters
+        ///
+        /// * `N` - The size of each batch to process
+        ///
+        /// # Parameters
+        ///
+        /// * `models` - An iterator yielding model instances to save
+        ///
+        /// # Returns
+        ///
+        /// * [`crate::Result<()>`](crate::Result) - Success if all batches were processed, or an error if any operation failed
+        ///
+        /// # Implementation Details
+        ///
+        /// The method:
+        /// 1. Splits each batch into models requiring insertion vs update
+        /// 2. Processes insertions and updates concurrently when possible
+        /// 3. Handles empty cases efficiently
+        /// 4. Maintains transactional integrity within each batch
+        ///
+        /// # Performance Features
+        ///
+        /// - Concurrent processing of inserts and updates
+        /// - Efficient batch size management
+        /// - Smart handling of empty cases
+        /// - Transaction management for data consistency
+        ///
+        /// # Performance Considerations
+        ///
+        /// Consider batch size carefully:
+        /// - Too small: More overhead from multiple transactions
+        /// - Too large: Higher memory usage and longer transaction times
+        async fn save_batch<const N: usize>(
+            &self,
+            models: impl IntoIterator<Item = M>,
+        ) -> crate::Result<()> {
+            let span = tracing::Span::current();
+            span.record("BATCH_SIZE", N);
 
-            for model in batch {
-                if model.get_id().is_some() {
-                    update.push(model);
-                } else {
-                    insert.push(model);
-                }
-            }
+            BatchOperator::<M, N>::execute_batch(models, |batch| async {
+                let mut update = Vec::new();
+                let mut insert = Vec::new();
 
-            match (update.is_empty(), insert.is_empty()) {
-                (false, false) => {
-                    futures::try_join!(<Self as UpdatableRepository<M>>::update_batch::<N>(self, update), <Self as InsertableRepository<M>>::insert_batch::<N>(self, insert))?;
+                for model in batch {
+                    if model.get_id().is_some() {
+                        update.push(model);
+                    } else {
+                        insert.push(model);
+                    }
                 }
-                (false, true) => {
-                    <Self as UpdatableRepository<M>>::update_batch::<N>(self, update).await?;
-                }
-                (true, false) => {
-                    <Self as InsertableRepository<M>>::insert_batch::<N>(self, insert).await?;
-                }
-                (true, true) => {}
-            }
 
-            Ok(())
-        })
-            .await
+                match (update.is_empty(), insert.is_empty()) {
+                    (false, false) => {
+                        futures::try_join!(<Self as UpdatableRepository<M>>::update_batch::<N>(self, update), <Self as InsertableRepository<M>>::insert_batch::<N>(self, insert))?;
+                    }
+                    (false, true) => {
+                        <Self as UpdatableRepository<M>>::update_batch::<N>(self, update).await?;
+                    }
+                    (true, false) => {
+                        <Self as InsertableRepository<M>>::insert_batch::<N>(self, insert).await?;
+                    }
+                    (true, true) => {}
+                }
+
+                Ok(())
+            })
+                .await
+        }
     }
 }
 

@@ -1,10 +1,10 @@
 //! Filter related traits for repositories
 
-use std::fmt::Debug;
-use cfg_if::cfg_if;
 use crate::traits::{Model, Repository, SqlFilter};
 use crate::types::Database;
+use cfg_if::cfg_if;
 use sqlx::{Database as DatabaseTrait, Executor, FromRow, QueryBuilder};
+use std::fmt::Debug;
 
 macro_rules! filter_repository_methods {
     (skip($($ident:ident),*)  $($err:ident)? ; $($debug:ident)?) => {
@@ -38,9 +38,7 @@ macro_rules! filter_repository_methods {
             F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
             E: for<'c> Executor<'c, Database = Database> + 'a,
         {
-            let mut query = Self::filter_query_builder();
-            filter.apply_filter(&mut query);
-            query.build_query_as().fetch_all(tx).await.map_err(Into::into)
+            Self::prepare_filter_query(filter).build_query_as().fetch_all(tx).await.map_err(Into::into)
         }
 
         /// Retrieves exactly one record matching the specified filter using a custom executor.
@@ -75,9 +73,7 @@ macro_rules! filter_repository_methods {
             F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
             E: for<'c> Executor<'c, Database = Database> + 'a,
         {
-            let mut query = Self::filter_query_builder();
-            filter.apply_filter(&mut query);
-            query.build_query_as().fetch_one(tx).await.map_err(Into::into)
+            Self::prepare_filter_query(filter).build_query_as().fetch_one(tx).await.map_err(Into::into)
         }
 
         /// Retrieves an optional record matching the specified filter using a custom executor.
@@ -114,9 +110,7 @@ macro_rules! filter_repository_methods {
             F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
             E: for<'c> Executor<'c, Database = Database> + 'a,
         {
-            let mut query = Self::filter_query_builder();
-            filter.apply_filter(&mut query);
-            query.build_query_as().fetch_optional(tx).await.map_err(Into::into)
+            Self::prepare_filter_query(filter).build_query_as().fetch_optional(tx).await.map_err(Into::into)
         }
 
         /// Retrieves all records matching the specified filter using the repository's connection pool.
@@ -567,12 +561,14 @@ macro_rules! filter_repository_ext {
 /// # Implementation Notes
 ///
 /// 1. Required method: [`filter_query_builder`](FilterRepository::filter_query_builder) - Creates a query builder for filter-based queries
-/// 2. All methods are instrumented with tracing for debugging and monitoring
-/// 3. Feature flags control the debug implementation and error logging behavior:
+/// 2. Query is built using [`prepare_filter_query`](FilterRepository::prepare_filter_query) and if anything is needed after the `WHERE` clause you need to override the
+///    [`post_filter_query_builder`](FilterRepository::post_filter_query_builder) this allows you to modify query or even scrap it and construct a new one.
+/// 3. All methods are instrumented with tracing for debugging and monitoring
+/// 4. Feature flags control the debug implementation and error logging behavior:
 ///    - `filter_debug_impl` - Adds a `Debug` bound to filter types
 ///    - `log_err` - Enables error logging in instrumentation
-/// 4. Works with filters created using the `sql_filter!` macro or custom `SqlFilter` implementations
-/// 5. All queries are properly parameterized to prevent SQL injection
+/// 5. Works with filters created using the `sql_filter!` macro or custom `SqlFilter` implementations
+/// 6. All queries are properly parameterized to prevent SQL injection
 #[diagnostic::on_unimplemented(
     message = "`{Self}` must implement `FilterRepository<{M}>` to filter `{M}` records with SqlFilter",
     label = "this type does not implement `FilterRepository` for model type `{M}`",
@@ -590,6 +586,8 @@ where
     /// SELECT statement prefix. It forms the foundation for all filter-based queries
     /// in the repository.
     ///
+    /// NOTE: You must not include a WHERE clause in the query
+    ///
     /// # Type Parameters
     ///
     /// * `'args` - The lifetime for query arguments
@@ -598,6 +596,30 @@ where
     ///
     /// * [`QueryBuilder`] - A new query builder configured for this repository
     fn filter_query_builder<'args>() -> QueryBuilder<'args, Database>;
+
+    /// Builds the Query and applies the given filter only if the filter has defined that
+    /// it should be applied, it will also append the start of the `WHERE` clause.
+    #[inline]
+    fn prepare_filter_query<'args>(filter: impl SqlFilter<'args>) -> QueryBuilder<'args, Database> {
+        let mut builder = Self::filter_query_builder();
+
+        if filter.should_apply_filter() {
+            builder.push("WHERE ");
+
+            filter.apply_filter(&mut builder);
+        }
+
+        let builder = Self::post_filter_query(builder);
+
+        builder
+    }
+
+    /// If you need anything to be after the WHERE clause in the query you will need to override this
+    /// method to add it.
+    #[inline(always)]
+    fn post_filter_query(builder: QueryBuilder<Database>) -> QueryBuilder<Database> {
+        builder
+    }
 
     cfg_if! {
         if #[cfg(all(feature = "filter_debug_impl", feature = "log_err"))] {

@@ -149,7 +149,6 @@ impl ToTokens for FilterTable {
         #[cfg(feature = "filter_debug_impl")]
         meta.push(&debug_meta);
 
-
         let struct_def = quote! {
             #(#meta)*
             #vis struct #name {
