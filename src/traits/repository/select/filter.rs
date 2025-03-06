@@ -628,7 +628,7 @@ where
             }
         } else if #[cfg(feature = "log_err")] {
             filter_repository_methods! {
-                skip(self, tx) err;
+                skip(self, tx, filter) err;
             }
         } else if #[cfg(feature = "filter_debug_impl")] {
             filter_repository_methods! {
