@@ -3,7 +3,28 @@ use crate::types::expression::Expression;
 use proc_macro2::Ident;
 use syn::parse::{Parse, ParseStream};
 
-/// Parses `SELECT * FROM example_table WHERE [conditions]`
+/// Represents the SQL query portion of a filter definition.
+///
+/// This struct parses the SQL-like syntax within the filter definition,
+/// extracting the columns to select, table name, and filter expression.
+///
+/// # Parsing
+///
+/// Parses input in the format:
+/// ```ignore
+/// SELECT columns FROM table_name WHERE expression
+/// ```
+///
+/// Where:
+/// - `columns` can be `*` or a comma-separated list of column names with optional aliases
+/// - `table_name` is the name of the database table
+/// - `expression` is a boolean expression combining filter conditions
+///
+/// # Fields
+///
+/// - `columns`: The columns to select (either all columns or specific ones)
+/// - `table_name`: The name of the database table
+/// - `expr`: The parsed filter expression
 #[allow(dead_code)]
 pub(crate) struct FilterSql {
     pub(crate) columns: Columns,

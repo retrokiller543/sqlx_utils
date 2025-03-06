@@ -9,11 +9,13 @@ pub(crate) mod filter_sql;
 pub(crate) mod filter_table;
 pub(crate) mod sql_operator;
 
+/// Gets the crate name as an [`Ident`].
 #[inline]
 fn crate_name() -> Ident {
     Ident::new(CRATE_NAME_STR, Span::call_site())
 }
 
+/// Gets the abstract database type to use.
 #[inline]
 fn database_type() -> TokenStream {
     quote! { ::sqlx_utils::prelude::Database }

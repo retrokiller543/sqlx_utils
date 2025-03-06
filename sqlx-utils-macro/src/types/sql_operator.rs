@@ -4,6 +4,41 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::Token;
 
+/// Represents SQL comparison operators.
+///
+/// This enum handles the various operators that can be used in SQL WHERE clauses.
+///
+/// # Variants
+///
+/// - `Equals`: `=`
+/// - `NotEquals`: `!=` or `NOT =`
+/// - `GreaterThan`: `>`
+/// - `LessThan`: `<`
+/// - `GreaterThanOrEqual`: `>=`
+/// - `LessThanOrEqual`: `<=`
+/// - `Like`: `LIKE`
+/// - `ILike`: `ILIKE`
+/// - `In`: `IN`
+/// - `NotIn`: `NOT IN`
+///
+/// # Parsing
+///
+/// Parses SQL operators from token streams, handling both symbolic operators
+/// (`=`, `>`, `<`, etc.) and keyword operators (`LIKE`, `IN`, etc.).
+///
+/// # Code Generation
+///
+/// Maps each operator to the corresponding filter function in the crate:
+/// - `=` → `equals`
+/// - `!=` → `not_equals`
+/// - `>` → `greater_than`
+/// - `<` → `less_than`
+/// - `>=` → `greater_than_or_equal`
+/// - `<=` → `less_than_or_equal`
+/// - `LIKE` → `like`
+/// - `ILIKE` → `i_like`
+/// - `IN` → `in_values`
+/// - `NOT IN` → `not_in_values`
 pub(crate) enum SqlOperator {
     Equals,
     NotEquals,

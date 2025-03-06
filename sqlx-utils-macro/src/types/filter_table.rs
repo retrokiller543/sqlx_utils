@@ -7,6 +7,35 @@ use syn::token::Brace;
 use syn::{Attribute, Token, Visibility};
 use syn_derive::Parse;
 
+/// Top-level structure representing a SQL filter definition.
+///
+/// This struct is the main entry point for parsing the `sql_filter!` macro input.
+/// It contains metadata about the generated struct (attributes, visibility, name)
+/// and the SQL filter definition.
+///
+/// # Parsing
+///
+/// Parses input in the format:
+/// ```ignore
+/// #[derive(Debug)] // optional attributes
+/// pub struct FilterName { // visibility and struct name
+///     SELECT * FROM table WHERE // SQL filter definition
+///     column = Type AND ...
+/// }
+/// ```
+///
+/// # Code Generation
+///
+/// Expands to:
+/// 1. A struct with fields for each condition in the filter
+/// 2. A constructor method with required fields as parameters
+/// 3. Builder methods for optional fields (those prefixed with `?`)
+/// 4. Implementation of the `SqlFilter` trait
+///
+/// The generated struct implements the `SqlFilter` trait with:
+/// - `apply_filter`: Applies the filter conditions to a query builder
+/// - `should_apply_filter`: Determines if the filter should be applied (true if
+///   all required fields are present and at least one optional field is present)
 #[derive(Parse)]
 #[allow(dead_code)]
 pub(crate) struct FilterTable {
