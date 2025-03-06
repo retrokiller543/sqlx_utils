@@ -28,7 +28,7 @@ macro_rules! filter_repository_methods {
         ///
         /// * [`crate::Result<Vec<M>>`] - A Result containing all matching models
         #[inline(always)]
-        #[tracing::instrument(skip($($ident),*), level = "debug", parent = Self::repository_span(), name = "get_by_filter", $($err, )?)]
+        #[tracing::instrument(skip($($ident),*), level = "debug", parent = &Self::repository_span(), name = "get_by_filter", $($err, )?)]
         async fn get_all_by_any_filter_with_executor<'a, F, E>(
             &'a self,
             tx: E,
@@ -63,7 +63,7 @@ macro_rules! filter_repository_methods {
         ///   - Error if no records match
         ///   - Error if multiple records match
         #[inline(always)]
-        #[tracing::instrument(skip($($ident),*), level = "debug", parent = Self::repository_span(), name = "get_by_filter", $($err, )?)]
+        #[tracing::instrument(skip($($ident),*), level = "debug", parent = &Self::repository_span(), name = "get_by_filter", $($err, )?)]
         async fn get_one_by_any_filter_with_executor<'a, F, E>(
             &'a self,
             tx: E,
@@ -100,7 +100,7 @@ macro_rules! filter_repository_methods {
         ///   - `Some(model)` if exactly one record matches
         ///   - Error if multiple records match
         #[inline(always)]
-        #[tracing::instrument(skip($($ident),*), level = "debug", parent = Self::repository_span(), name = "get_by_filter", $($err, )?)]
+        #[tracing::instrument(skip($($ident),*), level = "debug", parent = &Self::repository_span(), name = "get_by_filter", $($err, )?)]
         async fn get_optional_by_any_filter_with_executor<'a, F, E>(
             &'a self,
             tx: E,
