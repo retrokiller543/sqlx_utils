@@ -11,11 +11,11 @@ where
 {
     type Filter: for<'args> SqlFilter<'args, Database> + Debug + Send;
 
-    fn query_builder<'args>() -> QueryBuilder<'args, Database>;
+    fn filter_query_builder<'args>() -> QueryBuilder<'args, Database>;
 
     #[inline(always)]
     #[tracing::instrument(skip(self, tx), level = "debug", parent = Self::repository_span(), name = "get_by_filter")]
-    fn get_by_any_filter_raw<'a, F, E>(
+    fn get_by_any_filter_with_executor<'a, F, E>(
         &'a self,
         tx: E,
         filter: F,
@@ -25,7 +25,7 @@ where
         E: for<'c> Executor<'c, Database = Database> + 'a,
     {
         async move {
-            let mut query = Self::query_builder();
+            let mut query = Self::filter_query_builder();
             filter.apply_filter(&mut query);
             query.build_query_as().fetch_all(tx).await.map_err(Into::into)
         }
@@ -40,7 +40,7 @@ where
         F: for<'c> SqlFilter<'c, Database> + Debug + Send + 'a,
     {
             let pool = self.pool();
-            self.get_by_any_filter_raw(pool, filter).await
+            self.get_by_any_filter_with_executor(pool, filter).await
     }
 
     #[inline(always)]
@@ -52,7 +52,7 @@ where
     where
         E: for<'c> Executor<'c, Database = Database>,
     {
-        self.get_by_any_filter_raw(tx, filter).await
+        self.get_by_any_filter_with_executor(tx, filter).await
     }
 
     #[inline(always)]
@@ -62,6 +62,6 @@ where
     ) -> crate::Result<Vec<M>>
     {
         let pool = self.pool();
-        self.get_by_any_filter_raw(pool, filter).await
+        self.get_by_any_filter_with_executor(pool, filter).await
     }
 }

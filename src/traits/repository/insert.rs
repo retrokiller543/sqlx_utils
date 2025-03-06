@@ -115,6 +115,6 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
         &self,
         models: impl IntoIterator<Item = M>,
     ) -> crate::Result<()> {
-        BatchOperator::<M, N>::execute_query(models, self.pool(), Self::insert_one).await
+        BatchOperator::<M, N>::execute_query(models, self.pool(), Self::insert_query).await
     }
 }

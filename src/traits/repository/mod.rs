@@ -9,12 +9,8 @@ mod_def! {
 }
 
 use crate::traits::model::Model;
-use crate::traits::sql_filter::SqlFilter;
-use crate::utils::batch::{BatchOperator, DEFAULT_BATCH_SIZE};
-use std::future::Future;
-use tracing::Span;
+use tracing::{debug_span, Span};
 use crate::mod_def;
-use crate::types::Query;
 
 /// A trait that provides a standardized interface for database operations, implementing the Repository pattern
 /// for PostgreSQL databases. This trait serves as a foundation for all repository implementations in the system,
@@ -147,8 +143,6 @@ pub trait Repository<M>
 where
     M: Model,
 {
-    const REPOSITORY_NAME: &'static str = "Repository";
-
     /// Gets a reference to the database connection pool used by this repository.
     ///
     /// The pool is a fundamental component that manages database connections efficiently,
@@ -167,9 +161,14 @@ where
     /// let pool_ref = repo.pool();
     /// // Use pool_ref for custom database operations
     /// ```
-    fn pool(&self) -> & crate::types::Pool;
+    fn pool(&self) -> &crate::types::Pool;
 
-    /// Creates a SQL query to insert a single model instance into the database.
+    #[inline]
+    fn repository_span() -> Span {
+        debug_span!("Repository")
+    }
+
+    /*/// Creates a SQL query to insert a single model instance into the database.
     ///
     /// This method defines how a model should be persisted in the database as a new record.
     /// It constructs a parameterized query that maps the model's fields to database columns.
@@ -234,13 +233,10 @@ where
     /// 1. Handling soft deletes if required
     /// 2. Checking foreign key constraints
     /// 3. Implementing cascading deletes if needed
-    fn delete_one_by_id(id: &M::Id) -> Query<'_>;
+    fn delete_one_by_id(id: &M::Id) -> Query<'_>;*/
 
-    fn repository_span() -> Span {
-        Span::current()
-    }
 
-    /// Retrieves all records of this model type from the database.
+    /*/// Retrieves all records of this model type from the database.
     ///
     /// By default, this method is unimplemented and will panic if called. Repositories
     /// should override this method when they need to support retrieving all records.
@@ -661,5 +657,5 @@ where
             Ok(())
         })
             .await
-    }
+    }*/
 }

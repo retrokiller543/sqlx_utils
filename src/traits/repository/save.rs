@@ -27,9 +27,9 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn save(&self, model: &M) -> crate::Result<()> {
         if model.get_id().is_none() {
-            <Self as InsertableRepository<M>>::insert(&self, model).await
+            <Self as InsertableRepository<M>>::insert(self, model).await
         } else {
-            <Self as UpdatableRepository<M>>::update(&self, model).await
+            <Self as UpdatableRepository<M>>::update(self, model).await
         }
     }
 
@@ -49,7 +49,7 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     #[inline]
     async fn save_all(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
-        <Self as SaveRepository<M>>::save_batch::<DEFAULT_BATCH_SIZE>(&self, models).await
+        <Self as SaveRepository<M>>::save_batch::<DEFAULT_BATCH_SIZE>(self, models).await
     }
 
     /// Performs an intelligent batched save operation with a specified batch size.

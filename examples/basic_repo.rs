@@ -1,11 +1,6 @@
 #![allow(dead_code)]
 
-use sqlx::any::install_default_drivers;
-use sqlx_utils::pool::initialize_db_pool;
-use sqlx_utils::repository;
-use sqlx_utils::traits::{Model, Repository};
-use sqlx_utils::types::PoolOptions;
-use sqlx_utils_macro::sql_filter;
+use sqlx_utils::prelude::*;
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -35,6 +30,22 @@ repository! {
     pub UserRepo<User>;
 }
 
+repository_insert! {
+    UserRepo<User>;
+
+    fn insert_query(model) {
+        sqlx::query("INSERT INTO users (name) VALUES (?)").bind(&model.name)
+    };
+}
+
+repository_update! {
+    UserRepo<User>;
+
+    fn update_query(model) {
+        sqlx::query("UPDATE users SET name = ? where id = ?").bind(model.id).bind(&model.name)
+    };
+}
+
 #[tokio::main]
 async fn main() {
     install_default_drivers();
@@ -46,7 +57,7 @@ async fn main() {
             .idle_timeout(Duration::from_secs(60 * 10))
             .max_lifetime(Duration::from_secs(60 * 60 * 24))
             .acquire_timeout(Duration::from_secs(20))
-            .connect("postgresql://postgres:root@localhost:5432/tosic_db")
+            .connect(&DATABASE_URL)
             .await
             .expect("Failed to connect to database"),
     );

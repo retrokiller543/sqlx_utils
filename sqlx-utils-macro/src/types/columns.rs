@@ -57,7 +57,7 @@ impl Parse for Columns {
 }
 
 pub(crate) enum ColumnVal {
-    Type(Type),
+    Type(Box<Type>),
     Raw(LitStr),
 }
 

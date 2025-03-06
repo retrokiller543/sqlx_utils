@@ -16,15 +16,7 @@ fn crate_name() -> Ident {
 
 #[inline]
 fn database_type() -> TokenStream {
-    if cfg!(feature = "sqlite") {
-        quote! {::sqlx::Sqlite}
-    } else if cfg!(feature = "mysql") {
-        quote! {::sqlx::MySql}
-    } else if cfg!(feature = "postgres") {
-        quote! {::sqlx::Postgres}
-    } else {
-        quote! {::sqlx::Any}
-    }
+    quote! { ::sqlx_utils::prelude::Database }
 }
 
 /*impl SqlOperator {

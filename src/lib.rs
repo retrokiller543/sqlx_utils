@@ -4,6 +4,7 @@ pub mod error;
 pub mod filter;
 mod macros;
 pub mod pool;
+pub mod prelude;
 pub mod traits;
 pub mod types;
 pub mod utils;

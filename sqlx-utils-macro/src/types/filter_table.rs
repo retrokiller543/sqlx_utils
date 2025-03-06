@@ -50,9 +50,7 @@ impl ToTokens for FilterTable {
 
         let fields = fields
             .iter()
-            .filter(|(_, ty, _)| {
-                matches!(ty, ColumnVal::Type(_))
-            })
+            .filter(|(_, ty, _)| matches!(ty, ColumnVal::Type(_)))
             .collect::<Vec<_>>();
 
         let optional_fields = fields
