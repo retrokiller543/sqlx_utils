@@ -1,7 +1,102 @@
+//! Trait for adding update capabilities to a repository
+
 use crate::traits::{Model, Repository};
 use crate::types::Query;
 use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 
+/// Trait for repositories that can update existing records in the database.
+///
+/// The `UpdatableRepository` trait extends the base [`Repository`] trait with methods
+/// for updating existing records. It provides standardized ways to update both individual
+/// models and batches of models, optimizing database interactions while maintaining data
+/// integrity.
+///
+/// # Type Parameters
+///
+/// * `M` - The model type that this repository updates. Must implement the [`Model`] trait.
+///
+/// # Examples
+///
+/// Basic implementation:
+/// ```rust
+/// # use sqlx_utils::traits::{Model, Repository, UpdatableRepository};
+/// # use sqlx_utils::types::{Pool, Query};
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
+/// # struct UserRepository { pool: Pool }
+/// # impl Repository<User> for UserRepository {
+/// #     fn pool(&self) -> &Pool { &self.pool }
+/// # }
+///
+/// impl UpdatableRepository<User> for UserRepository {
+///     fn update_query(user: &User) -> Query<'_> {
+///         sqlx::query("UPDATE users SET name = $1 WHERE id = $2")
+///             .bind(&user.name)
+///             .bind(user.id)
+///     }
+/// }
+///
+/// // Usage
+/// # async fn example(repo: &UserRepository, user: &User) -> sqlx_utils::Result<()> {
+/// // Update a single user
+/// repo.update(user).await?;
+///
+/// // Update multiple users
+/// let users = vec![
+///     User { id: 1, name: String::from("Updated Alice") },
+///     User { id: 2, name: String::from("Updated Bob") }
+/// ];
+/// repo.update_many(users).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Using the macro for simpler implementation:
+/// ```rust
+/// # use sqlx_utils::{repository, repository_update};
+/// # use sqlx_utils::traits::Model;
+/// # use sqlx_utils::types::Query;
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
+///
+/// repository! {
+///     UserRepository<User>;
+///
+///     // Implementation will go here
+/// }
+///
+/// repository_update! {
+///     UserRepository<User>;
+///
+///     update_query(user) {
+///         sqlx::query("UPDATE users SET name = $1 WHERE id = $2")
+///             .bind(&user.name)
+///             .bind(user.id)
+///     }
+/// }
+/// ```
+///
+/// # Implementation Notes
+///
+/// 1. Required method: [`update_query`](UpdatableRepository::update_query) - Defines how a model is translated into an UPDATE statement
+/// 2. Provided methods:
+///    - [`update`](UpdatableRepository::update) - Updates a single model
+///    - [`update_many`](UpdatableRepository::update_many) - Updates multiple models using the default batch size
+///    - [`update_batch`](UpdatableRepository::update_batch) - Updates multiple models with a custom batch size
+/// 3. All batch operations use transactions to ensure data consistency
+/// 4. All methods assume the model has a valid ID (typically checked by the `Model::get_id` method)
+/// 5. Performance is optimized through batching and connection pooling
+#[diagnostic::on_unimplemented(
+    note = "Type `{Self}` does not implement the `UpdatableRepository<{M}>` trait",
+    label = "this type does not implement `UpdatableRepository` for model type `{M}`",
+    message = "`{Self}` must implement `UpdatableRepository<{M}>` to update `{M}` records"
+)]
 pub trait UpdatableRepository<M: Model>: Repository<M> {
     /// Creates a SQL query to update an existing model in the database.
     ///
@@ -70,7 +165,7 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
 
     /// Performs a batched update operation with a specified batch size.
     ///
-    /// Similar to [`insert_batch`](crate::traits::Insertable::insert_batch), this method uses [`BatchOperator`] to efficiently process
+    /// Similar to [`insert_batch`](crate::traits::InsertableRepository::insert_batch), this method uses [`BatchOperator`] to efficiently process
     /// large numbers of updates in chunks, preventing memory overflow and maintaining
     /// optimal database performance.
     ///

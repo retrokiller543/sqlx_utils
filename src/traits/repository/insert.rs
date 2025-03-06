@@ -1,7 +1,99 @@
+//! Trait for adding insert capabilities to a repository
+
 use crate::traits::{Model, Repository};
 use crate::types::Query;
 use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 
+/// Trait for repositories that can insert new records into the database.
+///
+/// The `InsertableRepository` trait extends the base [`Repository`] trait with methods
+/// for inserting new records. It provides standardized ways to insert both individual models
+/// and batches of models, optimizing database interactions for performance while maintaining
+/// data integrity.
+///
+/// # Type Parameters
+///
+/// * `M` - The model type that this repository inserts. Must implement the [`Model`] trait.
+///
+/// # Examples
+///
+/// Basic implementation:
+/// ```rust
+/// # use sqlx_utils::traits::{Model, Repository, InsertableRepository};
+/// # use sqlx_utils::types::{Pool, Query};
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
+/// # struct UserRepository { pool: Pool }
+/// # impl Repository<User> for UserRepository {
+/// #     fn pool(&self) -> &Pool { &self.pool }
+/// # }
+///
+/// impl InsertableRepository<User> for UserRepository {
+///     fn insert_query(user: &User) -> Query<'_> {
+///         sqlx::query("INSERT INTO users (name) VALUES ($1)")
+///             .bind(&user.name)
+///     }
+/// }
+///
+/// // Usage
+/// # async fn example(repo: &UserRepository, user: &User) -> sqlx_utils::Result<()> {
+/// // Insert a single user
+/// repo.insert(user).await?;
+///
+/// // Insert multiple users
+/// let users = vec![
+///     User { id: 1, name: String::from("Alice") },
+///     User { id: 2, name: String::from("Bob") }
+/// ];
+/// repo.insert_many(users).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Using the macro for simpler implementation:
+/// ```rust
+/// # use sqlx_utils::{repository, repository_insert};
+/// # use sqlx_utils::traits::Model;
+/// # use sqlx_utils::types::Query;
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
+///
+/// repository! {
+///     UserRepository<User>;
+///
+///     // Implementation will go here
+/// }
+///
+/// repository_insert! {
+///     UserRepository<User>;
+///
+///     fn insert_query(user) {
+///         sqlx::query("INSERT INTO users (name) VALUES ($1)")
+///             .bind(&user.name)
+///     };
+/// }
+/// ```
+///
+/// # Implementation Notes
+///
+/// 1. Required method: [`insert_query`](InsertableRepository::insert_query) - Defines how a model is translated into an INSERT statement
+/// 2. Provided methods:
+///    - [`insert`](InsertableRepository::insert) - Inserts a single model
+///    - [`insert_many`](InsertableRepository::insert_many) - Inserts multiple models using the default batch size
+///    - [`insert_batch`](InsertableRepository::insert_batch) - Inserts multiple models with a custom batch size
+/// 3. All batch operations use transactions to ensure data consistency
+/// 4. Performance is optimized through batching and connection pooling
+#[diagnostic::on_unimplemented(
+    note = "Type `{Self}` does not implement the `InsertableRepository<{M}>` trait",
+    label = "this type does not implement `InsertableRepository` for model type `{M}`",
+    message = "`{Self}` must implement `InsertableRepository<{M}>` to insert `{M}` records"
+)]
 pub trait InsertableRepository<M: Model>: Repository<M> {
     /// Creates a SQL query to insert a single model instance into the database.
     ///

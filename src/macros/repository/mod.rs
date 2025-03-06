@@ -15,7 +15,7 @@ macro_rules! repository_insert {
     {
         $ident:ident<$model:ty>;
 
-        fn $method_name:ident($param:pat_param) $block:block;
+        $method_name:ident($param:pat_param) $block:block
     } => {
         $crate::repository_insert!(!inner $ident<$model>; fn $method_name($param: &$model) -> $crate::types::Query<'_> $block);
     };

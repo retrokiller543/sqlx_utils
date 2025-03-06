@@ -1,7 +1,97 @@
+//! Trait for adding delete capabilities to a repository
+
 use crate::traits::{Model, Repository};
 use crate::types::Query;
 use crate::utils::{BatchOperator, DEFAULT_BATCH_SIZE};
 
+/// Trait for repositories that can delete records from the database.
+///
+/// The `DeleteRepository` trait extends the base [`Repository`] trait with methods
+/// for deleting records. It provides standardized ways to delete both individual
+/// records and batches of records, optimizing database interactions while maintaining
+/// data integrity.
+///
+/// # Type Parameters
+///
+/// * `M` - The model type that this repository deletes. Must implement the [`Model`] trait.
+///
+/// # Examples
+///
+/// Basic implementation:
+/// ```rust
+/// # use sqlx_utils::traits::{Model, Repository, DeleteRepository};
+/// # use sqlx_utils::types::{Pool, Query};
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
+/// # struct UserRepository { pool: Pool }
+/// # impl Repository<User> for UserRepository {
+/// #     fn pool(&self) -> &Pool { &self.pool }
+/// # }
+///
+/// impl DeleteRepository<User> for UserRepository {
+///     fn delete_query_by_id(id: &i32) -> Query<'_> {
+///         sqlx::query("DELETE FROM users WHERE id = $1")
+///             .bind(id)
+///     }
+/// }
+///
+/// // Usage
+/// # async fn example(repo: &UserRepository) -> sqlx_utils::Result<()> {
+/// // Delete a single user
+/// repo.delete_by_id(1).await?;
+///
+/// // Delete multiple users
+/// let ids = vec![1, 2, 3];
+/// repo.delete_many(ids).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// Using the macro for simpler implementation:
+/// ```rust
+/// # use sqlx_utils::{repository, repository_delete};
+/// # use sqlx_utils::traits::Model;
+/// # use sqlx_utils::types::Query;
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
+///
+/// repository! {
+///     UserRepository<User>;
+///
+///     // Implementation will go here
+/// }
+///
+/// repository_delete! {
+///     UserRepository<User>;
+///
+///     delete_query_by_id(id) {
+///         sqlx::query("DELETE FROM users WHERE id = $1")
+///             .bind(id)
+///     }
+/// }
+/// ```
+///
+/// # Implementation Notes
+///
+/// 1. Required method: [`delete_query_by_id`](DeleteRepository::delete_query_by_id) - Defines how to create a deletion query for a model ID
+/// 2. Provided methods:
+///    - [`delete_by_id`](DeleteRepository::delete_by_id) - Deletes a single record by ID
+///    - [`delete_many`](DeleteRepository::delete_many) - Deletes multiple records using the default batch size
+///    - [`delete_batch`](DeleteRepository::delete_batch) - Deletes multiple records with a custom batch size
+/// 3. All batch operations use transactions to ensure data consistency
+/// 4. Performance is optimized through batching and connection pooling
+/// 5. Consider implementing soft deletes if required by your application
+#[diagnostic::on_unimplemented(
+    note = "Type `{Self}` does not implement the `DeleteRepository<{M}>` trait",
+    label = "this type does not implement `DeleteRepository` for model type `{M}`",
+    message = "`{Self}` must implement `DeleteRepository<{M}>` to delete `{M}` records"
+)]
 pub trait DeleteRepository<M: Model>: Repository<M> {
     /// Creates a SQL query to delete a record by its ID.
     ///
@@ -56,7 +146,7 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
 
     /// Deletes multiple records using the default batch size.
     ///
-    /// This is a convenience wrapper around [`delete_batch`](Repository::delete_batch) that uses [`DEFAULT_BATCH_SIZE`].
+    /// This is a convenience wrapper around [`delete_batch`](Self::delete_batch) that uses [`DEFAULT_BATCH_SIZE`].
     /// It provides a simpler interface for bulk deletions when the default batch size
     /// is appropriate.
     ///

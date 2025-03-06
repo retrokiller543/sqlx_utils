@@ -12,9 +12,9 @@ macro_rules! repository_delete {
     {
         $ident:ident<$model:ty>;
 
-        fn $method_name:ident($param:pat_param) $block:block;
+        $method_name:ident($param:pat_param) $block:block
     } => {
-        $crate::repository_delete!(!inner $ident<$model>; fn $method_name($param: &$model) -> $crate::types::Query<'_> $block);
+        $crate::repository_delete!(!inner $ident<$model>; fn $method_name($param: &<$model as $crate::traits::Model>::Id) -> $crate::types::Query<'_> $block);
     };
 
     {

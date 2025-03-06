@@ -33,17 +33,17 @@ repository! {
 repository_insert! {
     UserRepo<User>;
 
-    fn insert_query(model) {
+    insert_query(model) {
         sqlx::query("INSERT INTO users (name) VALUES (?)").bind(&model.name)
-    };
+    }
 }
 
 repository_update! {
     UserRepo<User>;
 
-    fn update_query(model) {
+    update_query(model) {
         sqlx::query("UPDATE users SET name = ? where id = ?").bind(model.id).bind(&model.name)
-    };
+    }
 }
 
 #[tokio::main]

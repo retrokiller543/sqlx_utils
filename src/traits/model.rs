@@ -6,8 +6,8 @@ use std::hash::Hash;
 /// Trait for defining unique identification methods for database models.
 ///
 /// The `Model` trait provides a standardized way to handle identification of database
-/// models, with built-in support for collections and wrapper types like `Vec`, `Option`,
-/// and `Result`.
+/// models, with built-in support for collections and wrapper types like [`Vec`], [`Option`],
+/// and [`Result`].
 ///
 /// # Type Parameters
 ///
@@ -89,6 +89,11 @@ use std::hash::Hash;
 ///
 /// All implementations use `#[inline]` for optimal performance in tight loops
 /// or when working with large collections of models.
+#[diagnostic::on_unimplemented(
+    note = "Type `{Self}` does not implement the `Model` trait which is required for database operations",
+    label = "this type does not implement `Model`",
+    message = "`{Self}` must implement `Model` to define how to identify database records"
+)]
 pub trait Model {
     /// The type used for model identification
     type Id;

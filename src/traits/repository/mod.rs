@@ -13,9 +13,12 @@ use tracing::{debug_span, Span};
 use crate::mod_def;
 use crate::prelude::Pool;
 
-/// A trait that provides a standardized interface for database operations, implementing the Repository pattern
-/// for PostgreSQL databases. This trait serves as a foundation for all repository implementations in the system,
-/// offering both basic CRUD operations and advanced batch processing capabilities.
+/// A trait that provides a standardized interface for database operations, implementing the Repository pattern.
+///
+/// This trait serves as a foundation for all repository implementations in the system,
+/// offering both basic access to database connections and advanced batch processing capabilities.
+/// It centralizes the logic for database access patterns and promotes consistent error handling
+/// across the application.
 ///
 /// # Type Parameters
 ///
@@ -25,121 +28,68 @@ use crate::prelude::Pool;
 ///
 /// This trait follows several key design principles:
 ///
-/// 1. **Separation of Concerns**: The trait separates query definition from execution, allowing for flexible
-///    query construction and testing.
-/// 2. **Batch Processing**: Provides optimized batch operations for better performance when dealing with multiple records.
-/// 3. **Smart Defaults**: Implements higher-level operations (like [`save_all`](Repository::save_all)) in terms of simpler operations,
-///    while allowing repositories to override these implementations if needed.
-/// 4. **Async-first**: All operations are asynchronous, optimized for modern database interactions.
+/// 1. **Separation of Concerns**: The repository isolates database access logic from business logic
+/// 2. **Type Safety**: Uses generics and associated types to maintain compile-time type checking
+/// 3. **Instrumentation Support**: Built-in tracing for debugging and monitoring
+/// 4. **Extensibility**: Serves as a base for more specialized repository traits
 ///
 /// # Core Methods
 ///
-/// Repositories must implement these fundamental methods:
+/// Repositories must implement:
 ///
-/// ```no_run
-/// fn pool(&self) -> &PgPool;               // Access to database connection
-/// fn insert_one(model: &M) -> Query<'_>; // Single item insertion query
-/// fn update_one(model: &M) -> Query<'_>; // Single item update query
-/// fn delete_one_by_id(id: &M::Id) -> Query<'_>; // Single item deletion query
+/// ```no_compile
+/// fn pool(&self) -> &Pool;  // Access to database connection pool
 /// ```
-///
-/// # Optional Methods
-///
-/// These methods have default implementations but can be overridden:
-///
-/// ```no_run
-/// async fn get_all(&self) -> Result<Vec<M>>                  // Retrieve all records
-/// async fn get_by_id(&self, id: impl Into<M::Id>) -> Result<Option<M>> // Get by ID
-/// ```
-///
-/// # Batch Operations
-///
-/// The trait provides several batch operation methods that are automatically implemented:
-///
-/// * [`insert_many`](Repository::insert_many)/[`insert_batch`](Repository::insert_batch): Bulk insert operations
-/// * [`update_many`](Repository::update_many)/[`update_batch`](Repository::update_batch): Bulk update operations
-/// * [`delete_many`](Repository::delete_many)/[`delete_batch`](Repository::delete_batch): Bulk delete operations
-/// * [`save_all`](Repository::save_all)/[`save_batch`](Repository::save_batch): Smart bulk save operations that handle both inserts and updates
-///
-/// Each operation comes in two variants:
-/// - A convenience method using the default batch size
-/// - A size-parameterized version allowing custom batch sizes
-///
-/// # Smart Save Operations
-///
-/// The trait implements intelligent save operations that automatically determine whether to insert or update:
-///
-/// * [`save`](Repository::save): For single models - inserts if the model has no ID, updates if it does
-/// * [`save_all`](Repository::save_all)/[`save_batch`](Repository::save_batch): For multiple models - efficiently batches inserts and updates separately
 ///
 /// # Usage Example
 ///
+/// Basic repository implementation:
 /// ```rust
-/// use sqlx::PgPool;
+/// # use sqlx_utils::prelude::*;
+/// # use sqlx_utils::types::Pool;
+/// # struct User { id: i32, name: String }
+/// # impl Model for User {
+/// #     type Id = i32;
+/// #     fn get_id(&self) -> Option<Self::Id> { Some(self.id) }
+/// # }
 ///
 /// struct UserRepository {
-///     pool: PgPool
+///     pool: Pool
 /// }
 ///
 /// impl Repository<User> for UserRepository {
-///     fn pool(&self) -> &PgPool {
+///     fn pool(&self) -> &Pool {
 ///         &self.pool
 ///     }
-///
-///     fn insert_one(user: &User) -> Query<'_> {
-///         sqlx::query("INSERT INTO users (name, email) VALUES ($1, $2)")
-///             .bind(&user.name)
-///             .bind(&user.email)
-///     }
-///
-///     // ... implement other required methods
 /// }
 ///
-/// // Using the repository
-/// async fn create_users(repo: &UserRepository, users: Vec<User>) -> crate::Result<()> {
-///     // This will automatically batch the inserts for optimal performance
-///     repo.insert_many(users).await
+/// // Adding specialized capabilities through extension traits
+/// impl InsertableRepository<User> for UserRepository {
+///     fn insert_query(user: &User) -> Query<'_> {
+///         sqlx::query("INSERT INTO users (name) VALUES ($1)")
+///             .bind(&user.name)
+///     }
 /// }
 /// ```
 ///
-/// # Performance Considerations
-///
-/// 1. **Batch Processing**: The trait uses the [`BatchOperator`] to process items in chunks,
-///    preventing memory overflow and maintaining optimal database performance.
-///
-/// 2. **Transaction Management**: Batch operations are executed within transactions to ensure
-///    data consistency.
-///
-/// 3. **Concurrent Operations**: Where possible (like in [`save_batch`](Repository::save_batch)), independent operations
-///    are executed concurrently using [`try_join!`](futures::try_join).
-///
-/// # Instrumentation
-///
-/// All public methods are instrumented with tracing at the debug level, facilitating
-/// debugging and performance monitoring. The `skip_all` directive prevents sensitive
-/// data from being logged.
-///
 /// # Error Handling
 ///
-/// All operations return [`crate::Result<T>`], providing consistent error handling across
-/// the application. This includes:
-/// - Database errors
-/// - Validation errors
-/// - Transaction errors
+/// Repository methods return [`crate::Result<T>`], providing consistent error handling across
+/// the application. This includes database errors, validation errors, and transaction errors.
 ///
 /// # Implementation Notes
 ///
-/// 1. The trait leverages generics and associated types to maintain type safety while
-///    providing flexibility.
-///
-/// 2. Default implementations of batch operations use the [`DEFAULT_BATCH_SIZE`] constant,
-///    but custom sizes can be specified using the `_batch` variants.
-///
-/// 3. The [`save_batch`](Repository::save_batch) implementation intelligently sorts models into insert and update
-///    operations, executing them in the most efficient way possible.
-///
-/// 4. Unimplemented methods ([`get_all`](Repository::get_all) and [`get_by_id`](Repository::get_by_id)) provide clear error messages
-///    when called without implementation.
+/// 1. The trait is intended to be extended by more specialized traits that provide
+///    concrete CRUD operations (like [`InsertableRepository`], [`UpdatableRepository`], etc.)
+/// 2. The static `repository_span()` method provides consistent tracing instrumentation
+///    across all repositories
+/// 3. Use the included macros ([`repository!`](crate::repository), [`repository_insert!`](crate::repository_insert), etc.) to reduce
+///    boilerplate when implementing repositories
+#[diagnostic::on_unimplemented(
+    note = "Type `{Self}` does not implement the `Repository<{M}>` trait",
+    label = "this type does not implement `Repository` for model type `{M}`",
+    message = "`{Self}` must implement `Repository<{M}>` to provide database operations for `{M}`"
+)]
 pub trait Repository<M>
 where
     M: Model,
@@ -156,6 +106,15 @@ where
     /// * `&`[`Pool`] - A reference to the Database connection pool
     fn pool(&self) -> &Pool;
 
+    /// Creates a tracing span for repository operations.
+    ///
+    /// This method provides a consistent way to create spans for tracing and
+    /// debugging repository operations. All repository methods should use this
+    /// span as their parent span to ensure proper hierarchical tracing.
+    ///
+    /// # Returns
+    ///
+    /// * [`Span`] - A tracing span for repository operations
     #[inline]
     fn repository_span() -> Span {
         debug_span!("Repository")
