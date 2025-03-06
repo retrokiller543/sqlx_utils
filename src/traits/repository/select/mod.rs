@@ -1,13 +1,11 @@
-use crate::traits::{Model, Repository, SqlFilter};
+mod_def! {
+    pub mod filter;
+}
 
-pub trait SelectRepository<'a, M: Model>: Repository<M> {
-    type Filter: SqlFilter<'a>;
+use crate::mod_def;
+use crate::traits::{Model, Repository};
 
-    /// Gets by predefined filter
-    async fn get_by_filter(&self, filter: Self::Filter) -> crate::Result<Vec<M>> {
-        <Self as SelectRepository<'_, M>>::get_by_any_filter(self, filter).await
-    }
-    
+pub trait SelectRepository<M: Model>: Repository<M> {
     /// Retrieves all records of this model type from the database.
     ///
     /// By default, this method is unimplemented and will panic if called. Repositories
@@ -23,9 +21,6 @@ pub trait SelectRepository<'a, M: Model>: Repository<M> {
     /// Be cautious with this method on large tables as it could consume significant
     /// memory and impact database performance. Consider implementing pagination instead.
     async fn get_all(&self) -> crate::Result<Vec<M>>;
-
-    /// Gets by any filter
-    async fn get_by_any_filter(&self, filter: impl SqlFilter<'_>) -> crate::Result<Vec<M>>;
 
     /// Retrieves a single model instance by its ID.
     ///

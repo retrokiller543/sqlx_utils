@@ -45,7 +45,7 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
     /// 1. Gets the update query from [`update_query`](Self::update_query)
     /// 2. Executes it using the connection pool
     /// 3. Handles any potential database errors
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn update(&self, model: &M) -> crate::Result<()> {
         Self::update_query(model).execute(self.pool()).await?;
         Ok(())
@@ -63,7 +63,7 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all updates were executed, or an error if any operation failed
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn update_many(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
         <Self as UpdatableRepository<M>>::update_batch::<DEFAULT_BATCH_SIZE>(self, models).await
     }
@@ -91,7 +91,7 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn update_batch<const N: usize>(
         &self,
         models: impl IntoIterator<Item = M>,

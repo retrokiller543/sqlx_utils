@@ -22,3 +22,14 @@ macro_rules! db_type {
     };
 }
 pub(crate) use db_type;
+use crate::traits::Model;
+
+pub(crate) struct DummyModel;
+
+impl Model for DummyModel {
+    type Id = ();
+
+    fn get_id(&self) -> Option<Self::Id> {
+        Some(())
+    }
+}

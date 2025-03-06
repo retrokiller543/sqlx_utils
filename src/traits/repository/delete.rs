@@ -46,7 +46,7 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     ///     repo.delete_by_id(user_id).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn delete_by_id(&self, id: impl Into<M::Id>) -> crate::Result<()> {
         Self::delete_query_by_id(&id.into())
             .execute(self.pool())
@@ -67,7 +67,7 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all deletions were executed, or an error if any operation failed
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn delete_many(&self, ids: impl IntoIterator<Item = M::Id>) -> crate::Result<()> {
         <Self as DeleteRepository<M>>::delete_batch::<DEFAULT_BATCH_SIZE>(self, ids).await
     }
@@ -102,7 +102,7 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn delete_batch<const N: usize>(
         &self,
         ids: impl IntoIterator<Item = M::Id>,

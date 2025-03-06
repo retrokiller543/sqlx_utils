@@ -47,7 +47,7 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
     ///     repo.insert(user).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn insert(&self, model: &M) -> crate::Result<()> {
         Self::insert_query(model).execute(self.pool()).await?;
         Ok(())
@@ -74,7 +74,7 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
     ///     repo.insert_many(users).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn insert_many(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
         <Self as InsertableRepository<M>>::insert_batch::<DEFAULT_BATCH_SIZE>(self, models).await
     }
@@ -110,7 +110,7 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn insert_batch<const N: usize>(
         &self,
         models: impl IntoIterator<Item = M>,

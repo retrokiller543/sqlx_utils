@@ -1,19 +1,18 @@
 //! [`Repository`] Trait to define a database repository
 
-mod delete;
-
 mod_def! {
     pub mod insert;
     pub mod update;
     pub mod save;
     pub mod select;
+    pub mod delete;
 }
-
 
 use crate::traits::model::Model;
 use crate::traits::sql_filter::SqlFilter;
 use crate::utils::batch::{BatchOperator, DEFAULT_BATCH_SIZE};
 use std::future::Future;
+use tracing::Span;
 use crate::mod_def;
 use crate::types::Query;
 
@@ -148,6 +147,8 @@ pub trait Repository<M>
 where
     M: Model,
 {
+    const REPOSITORY_NAME: &'static str = "Repository";
+
     /// Gets a reference to the database connection pool used by this repository.
     ///
     /// The pool is a fundamental component that manages database connections efficiently,
@@ -235,6 +236,10 @@ where
     /// 3. Implementing cascading deletes if needed
     fn delete_one_by_id(id: &M::Id) -> Query<'_>;
 
+    fn repository_span() -> Span {
+        Span::current()
+    }
+
     /// Retrieves all records of this model type from the database.
     ///
     /// By default, this method is unimplemented and will panic if called. Repositories
@@ -249,13 +254,13 @@ where
     ///
     /// Be cautious with this method on large tables as it could consume significant
     /// memory and impact database performance. Consider implementing pagination instead.
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn get_all(&self) -> crate::Result<Vec<M>> {
         unimplemented!("This method has not been implemented for this repository")
     }
 
     /// Gets by a filter
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn get_by_any_filter(&self, _filter: impl SqlFilter<'_>) -> crate::Result<Vec<M>> {
         unimplemented!("This method has not been implemented for this repository")
     }
@@ -275,7 +280,7 @@ where
     /// * [`crate::Result<Option<M>>`] - A Result containing either:
     ///   - Some(model) if a record was found
     ///   - None if no record exists with the given ID
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn get_by_id(&self, _: impl Into<M::Id>) -> crate::Result<Option<M>> {
         unimplemented!("This method has not been implemented for this repository")
     }
@@ -301,7 +306,7 @@ where
     ///     repo.insert(user).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn insert(&self, model: &M) -> crate::Result<()> {
         Self::insert_one(model).execute(self.pool()).await?;
         Ok(())
@@ -328,7 +333,7 @@ where
     ///     repo.insert_many(users).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn insert_many(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
         self.insert_batch::<DEFAULT_BATCH_SIZE>(models).await
     }
@@ -364,7 +369,7 @@ where
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn insert_batch<const N: usize>(
         &self,
         models: impl IntoIterator<Item = M>,
@@ -392,7 +397,7 @@ where
     /// 1. Gets the update query from [`update_one`](Repository::update_one)
     /// 2. Executes it using the connection pool
     /// 3. Handles any potential database errors
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn update(&self, model: &M) -> crate::Result<()> {
         Self::update_one(model).execute(self.pool()).await?;
         Ok(())
@@ -410,7 +415,7 @@ where
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all updates were executed, or an error if any operation failed
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn update_many(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
         self.update_batch::<DEFAULT_BATCH_SIZE>(models).await
     }
@@ -438,7 +443,7 @@ where
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn update_batch<const N: usize>(
         &self,
         models: impl IntoIterator<Item = M>,
@@ -467,7 +472,7 @@ where
     ///     repo.delete_by_id(user_id).await
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn delete_by_id(&self, id: impl Into<M::Id>) -> crate::Result<()> {
         Self::delete_one_by_id(&id.into())
             .execute(self.pool())
@@ -488,7 +493,7 @@ where
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all deletions were executed, or an error if any operation failed
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn delete_many(&self, ids: impl IntoIterator<Item = M::Id>) -> crate::Result<()> {
         self.delete_batch::<DEFAULT_BATCH_SIZE>(ids).await
     }
@@ -523,7 +528,7 @@ where
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn delete_batch<const N: usize>(
         &self,
         ids: impl IntoIterator<Item = M::Id>,
@@ -553,7 +558,7 @@ where
     ///     repo.save(user).await // Will insert or update based on user.id
     /// }
     /// ```
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn save(&self, model: &M) -> crate::Result<()> {
         if model.get_id().is_none() {
             self.insert(model).await
@@ -575,7 +580,7 @@ where
     /// # Returns
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all operations were executed, or an error if any failed
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     #[inline]
     fn save_all(&self, models: impl IntoIterator<Item = M>) -> impl Future<Output = crate::Result<()>> {
         async { self.save_batch::<DEFAULT_BATCH_SIZE>(models).await }
@@ -619,7 +624,7 @@ where
     /// Consider batch size carefully:
     /// - Too small: More overhead from multiple transactions
     /// - Too large: Higher memory usage and longer transaction times
-    #[tracing::instrument(skip_all, level = "debug")]
+    #[tracing::instrument(skip_all, level = "debug", parent = Self::repository_span())]
     async fn save_batch<const N: usize>(
         &self,
         models: impl IntoIterator<Item = M>,
