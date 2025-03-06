@@ -29,14 +29,14 @@ macro_rules! filter_repository_methods {
         /// * [`crate::Result<Vec<M>>`] - A Result containing all matching models
         #[inline(always)]
         #[tracing::instrument(skip($($ident),*), level = "debug", parent = &Self::repository_span(), name = "get_by_filter", $($err, )?)]
-        async fn get_all_by_any_filter_with_executor<'a, F, E>(
+        async fn get_all_by_any_filter_with_executor<'a, 'c, F, E>(
             &'a self,
             tx: E,
             filter: F,
         ) -> crate::Result<Vec<M>>
         where
-            F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
-            E: for<'c> Executor<'c, Database = Database> + 'a,
+            F: for<'b> SqlFilter<'b, Database> $(+ $debug)? + Send + 'a,
+            E: Executor<'c, Database = Database> + 'a,
         {
             Self::prepare_filter_query(filter).build_query_as().fetch_all(tx).await.map_err(Into::into)
         }
@@ -64,14 +64,14 @@ macro_rules! filter_repository_methods {
         ///   - Error if multiple records match
         #[inline(always)]
         #[tracing::instrument(skip($($ident),*), level = "debug", parent = &Self::repository_span(), name = "get_by_filter", $($err, )?)]
-        async fn get_one_by_any_filter_with_executor<'a, F, E>(
+        async fn get_one_by_any_filter_with_executor<'a, 'c, F, E>(
             &'a self,
             tx: E,
             filter: F,
         ) -> crate::Result<M>
         where
-            F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
-            E: for<'c> Executor<'c, Database = Database> + 'a,
+            F: for<'b> SqlFilter<'b, Database> $(+ $debug)? + Send + 'a,
+            E: Executor<'c, Database = Database> + 'a,
         {
             Self::prepare_filter_query(filter).build_query_as().fetch_one(tx).await.map_err(Into::into)
         }
@@ -101,14 +101,14 @@ macro_rules! filter_repository_methods {
         ///   - Error if multiple records match
         #[inline(always)]
         #[tracing::instrument(skip($($ident),*), level = "debug", parent = &Self::repository_span(), name = "get_by_filter", $($err, )?)]
-        async fn get_optional_by_any_filter_with_executor<'a, F, E>(
+        async fn get_optional_by_any_filter_with_executor<'a, 'c, F, E>(
             &'a self,
             tx: E,
             filter: F,
         ) -> crate::Result<Option<M>>
         where
-            F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
-            E: for<'c> Executor<'c, Database = Database> + 'a,
+            F: for<'b> SqlFilter<'b, Database> $(+ $debug)? + Send + 'a,
+            E: Executor<'c, Database = Database> + 'a,
         {
             Self::prepare_filter_query(filter).build_query_as().fetch_optional(tx).await.map_err(Into::into)
         }
@@ -138,8 +138,8 @@ macro_rules! filter_repository_methods {
         where
             F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
         {
-                let pool = self.pool();
-                self.get_all_by_any_filter_with_executor(pool, filter).await
+            let pool = self.pool();
+            self.get_all_by_any_filter_with_executor(pool, filter).await
         }
 
         /// Retrieves exactly one record matching the specified filter using the repository's connection pool.
@@ -169,8 +169,8 @@ macro_rules! filter_repository_methods {
         where
             F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
         {
-                let pool = self.pool();
-                self.get_one_by_any_filter_with_executor(pool, filter).await
+            let pool = self.pool();
+            self.get_one_by_any_filter_with_executor(pool, filter).await
         }
 
         /// Retrieves an optional record matching the specified filter using the repository's connection pool.
@@ -201,8 +201,8 @@ macro_rules! filter_repository_methods {
         where
             F: for<'c> SqlFilter<'c, Database> $(+ $debug)? + Send + 'a,
         {
-                let pool = self.pool();
-                self.get_optional_by_any_filter_with_executor(pool, filter).await
+            let pool = self.pool();
+            self.get_optional_by_any_filter_with_executor(pool, filter).await
         }
     };
 }
@@ -324,13 +324,13 @@ macro_rules! filter_repository_ext {
             ///
             /// * [`crate::Result<Vec<M>>`] - A Result containing all matching models
             #[inline(always)]
-            async fn get_all_by_filter_with_executor<E>(
+            async fn get_all_by_filter_with_executor<'c, E>(
                 &self,
                 tx: E,
                 filter: Filter,
             ) -> crate::Result<Vec<M>>
             where
-                E: for<'c> Executor<'c, Database = Database>,
+                E: Executor<'c, Database = Database>,
             {
                 self.get_all_by_any_filter_with_executor(tx, filter).await
             }
@@ -373,13 +373,13 @@ macro_rules! filter_repository_ext {
             ///   - Error if no records match
             ///   - Error if multiple records match
             #[inline(always)]
-            async fn get_one_by_filter_with_executor<E>(
+            async fn get_one_by_filter_with_executor<'c, E>(
                 &self,
                 tx: E,
                 filter: Filter,
             ) -> crate::Result<M>
             where
-                E: for<'c> Executor<'c, Database = Database>,
+                E: Executor<'c, Database = Database>,
             {
                 self.get_one_by_any_filter_with_executor(tx, filter).await
             }
@@ -425,13 +425,13 @@ macro_rules! filter_repository_ext {
             ///   - `Some(model)` if exactly one record matches
             ///   - Error if multiple records match
             #[inline(always)]
-            async fn get_optional_by_filter_with_executor<E>(
+            async fn get_optional_by_filter_with_executor<'c, E>(
                 &self,
                 tx: E,
                 filter: Filter,
             ) -> crate::Result<Option<M>>
             where
-                E: for<'c> Executor<'c, Database = Database>,
+                E: Executor<'c, Database = Database>,
             {
                 self.get_optional_by_any_filter_with_executor(tx, filter).await
             }

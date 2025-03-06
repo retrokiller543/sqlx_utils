@@ -150,13 +150,13 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
         /// The method will panic if an ID is present, but it will only do so in debug mode to avoid
         /// performance issues. This is so that we don't insert a duplicate key, if this is the desired behavior you want you can enable the feature `insert_duplicate`
         #[inline(always)]
-        async fn insert_with_executor<E>(
+        async fn insert_with_executor<'c, E>(
             &self,
             tx: E,
             model: &M
         ) -> crate::Result<()>
         where
-            E: for<'c> Executor<'c, Database = Database>,
+            E: Executor<'c, Database = Database>,
         {
             #[cfg(not(feature = "insert_duplicate"))]
             debug_assert!(model.get_id().is_none());

@@ -111,13 +111,13 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
         /// }
         /// ```
         #[inline]
-        async fn save_with_executor<E>(
+        async fn save_with_executor<'c, E>(
             &self,
             tx: E,
             model: &M
         ) -> crate::Result<()>
         where
-            E: for<'c> Executor<'c, Database = Database>,
+            E: Executor<'c, Database = Database>,
         {
              if model.get_id().is_none() {
                 <Self as InsertableRepository<M>>::insert_with_executor(self, tx, model).await

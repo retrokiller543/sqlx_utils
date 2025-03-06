@@ -147,13 +147,13 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
         /// 2. Executes it using the connection pool
         /// 3. Handles any potential database errors
         #[inline(always)]
-        async fn update_with_executor<E>(
+        async fn update_with_executor<'c, E>(
             &self,
             tx: E,
             model: &M
         ) -> crate::Result<()>
         where
-            E: for<'c> Executor<'c, Database = Database>,
+            E: Executor<'c, Database = Database>,
         {
              Self::update_query(model).execute(tx).await?;
             Ok(())
