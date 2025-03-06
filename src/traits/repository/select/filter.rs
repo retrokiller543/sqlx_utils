@@ -2,7 +2,6 @@ use std::fmt::Debug;
 use crate::traits::{Model, Repository, SqlFilter};
 use crate::types::Database;
 use sqlx::{Database as DatabaseTrait, Executor, FromRow, QueryBuilder};
-use std::future::Future;
 
 pub trait FilterRepository<M>: Repository<M>
 where
@@ -13,20 +12,18 @@ where
 
     #[inline(always)]
     #[tracing::instrument(skip(self, tx), level = "debug", parent = Self::repository_span(), name = "get_by_filter")]
-    fn get_by_any_filter_with_executor<'a, F, E>(
+    async fn get_by_any_filter_with_executor<'a, F, E>(
         &'a self,
         tx: E,
         filter: F,
-    ) -> impl Future<Output = crate::Result<Vec<M>>> + Send + 'a
+    ) -> crate::Result<Vec<M>>
     where
         F: for<'c> SqlFilter<'c, Database> + Debug + Send + 'a,
         E: for<'c> Executor<'c, Database = Database> + 'a,
     {
-        async move {
-            let mut query = Self::filter_query_builder();
-            filter.apply_filter(&mut query);
-            query.build_query_as().fetch_all(tx).await.map_err(Into::into)
-        }
+        let mut query = Self::filter_query_builder();
+        filter.apply_filter(&mut query);
+        query.build_query_as().fetch_all(tx).await.map_err(Into::into)
     }
 
     #[inline(always)]
