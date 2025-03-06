@@ -30,6 +30,11 @@ repository! {
     pub UserRepo<User>;
 }
 
+repository! {
+    !zst
+    pub UserRepo2<User>;
+}
+
 repository_insert! {
     UserRepo<User>;
 

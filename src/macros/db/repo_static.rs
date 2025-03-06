@@ -38,4 +38,10 @@ macro_rules! static_repo {
             });
         }
     };
+
+    (!zst $vis:vis $ident:ident;) => {
+        ::paste::paste! {
+            $vis static [<$ident:snake:upper>]: $ident = $ident::new();
+        }
+    };
 }
