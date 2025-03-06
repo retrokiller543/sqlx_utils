@@ -1,10 +1,10 @@
 //! Trait for adding delete capabilities to a repository
 
-use sqlx::Executor;
 use crate::prelude::{Database, SqlFilter};
 use crate::traits::{Model, Repository};
 use crate::types::Query;
 use crate::utils::{tracing_debug_log, BatchOperator, DEFAULT_BATCH_SIZE};
+use sqlx::{Executor, QueryBuilder};
 
 /// Trait for repositories that can delete records from the database.
 ///
@@ -149,7 +149,11 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     /// 1. Handling soft deletes if required
     /// 2. Checking foreign key constraints
     /// 3. Implementing cascading deletes if needed
-    fn delete_by_filter_query<'args>(filter: impl SqlFilter<'args>) -> Query<'args>;
+    /// 4. If called via the default implementation of [`delete_by_filter_with_executor`](Self::delete_by_filter_with_executor)
+    ///    the filter will be guaranteed to be applied.
+    fn delete_by_filter_query<'args>(
+        filter: impl SqlFilter<'args>,
+    ) -> QueryBuilder<'args, Database>;
 
     tracing_debug_log! {
         [skip_all, Self::repository_span(), "delete_by_id",]
@@ -312,7 +316,14 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
         where
             E: for<'c> Executor<'c, Database = Database>,
         {
+            if !filter.should_apply_filter() {
+                return Err(crate::Error::Repository {
+                    message: "Can not Delete from table with a empty filter.".into(),
+                })
+            }
+
              Self::delete_by_filter_query(filter)
+                .build()
                 .execute(tx)
                 .await?;
             Ok(())
@@ -342,6 +353,7 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     /// ```
     #[inline(always)]
     async fn delete_by_filter(&self, filter: impl SqlFilter<'_>) -> crate::Result<()> {
-        self.delete_by_filter_with_executor(self.pool(), filter).await
+        self.delete_by_filter_with_executor(self.pool(), filter)
+            .await
     }
 }

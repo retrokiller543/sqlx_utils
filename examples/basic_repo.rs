@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use sqlx::QueryBuilder;
 use sqlx_utils::prelude::*;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -48,6 +49,22 @@ repository_update! {
 
     update_query(model) {
         sqlx::query("UPDATE users SET name = ? where id = ?").bind(model.id).bind(&model.name)
+    }
+}
+
+repository_delete! {
+    UserRepo<User>;
+
+    delete_by_id_query(id) {
+        sqlx::query("DELETE FROM users WHERE id = ?").bind(id)
+    }
+
+    delete_by_filter_query(filter) {
+        let mut builder = QueryBuilder::new("DELETE FROM users WHERE ");
+
+        filter.apply_filter(&mut builder);
+
+        builder
     }
 }
 
