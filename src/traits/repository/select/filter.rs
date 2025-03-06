@@ -9,8 +9,6 @@ where
     M: Model + for<'r> FromRow<'r, <Database as DatabaseTrait>::Row> + Send + Unpin,
     Self: Sync,
 {
-    type Filter: for<'args> SqlFilter<'args, Database> + Debug + Send;
-
     fn filter_query_builder<'args>() -> QueryBuilder<'args, Database>;
 
     #[inline(always)]
@@ -42,12 +40,19 @@ where
             let pool = self.pool();
             self.get_by_any_filter_with_executor(pool, filter).await
     }
+}
 
+pub trait FilterRepositoryExt<M, Filter>: FilterRepository<M>
+where
+    M: Model + for<'r> FromRow<'r, <Database as DatabaseTrait>::Row> + Send + Unpin,
+    Filter: for<'args> SqlFilter<'args, Database> + Debug + Send,
+    Self: Sync,
+{
     #[inline(always)]
-    async fn get_by_filter_raw<E>(
+    async fn get_by_filter_with_executor<E>(
         &self,
         tx: E,
-        filter: Self::Filter,
+        filter: Filter,
     ) -> crate::Result<Vec<M>>
     where
         E: for<'c> Executor<'c, Database = Database>,
@@ -58,10 +63,18 @@ where
     #[inline(always)]
     async fn get_by_filter(
         &self,
-        filter: Self::Filter,
+        filter: Filter,
     ) -> crate::Result<Vec<M>>
     {
         let pool = self.pool();
         self.get_by_any_filter_with_executor(pool, filter).await
     }
 }
+
+impl<M, Filter, T> FilterRepositoryExt<M, Filter> for T
+where
+    T: FilterRepository<M>,
+    M: Model + for<'r> FromRow<'r, <Database as DatabaseTrait>::Row> + Send + Unpin,
+    Filter: for<'args> SqlFilter<'args, Database> + Debug + Send,
+    Self: Sync,
+{}
