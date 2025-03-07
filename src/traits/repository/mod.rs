@@ -6,12 +6,13 @@ mod_def! {
     pub mod save;
     pub mod select;
     pub mod delete;
+    pub mod transaction;
 }
 
-use crate::traits::model::Model;
-use tracing::{debug_span, Span};
 use crate::mod_def;
 use crate::prelude::Pool;
+use crate::traits::model::Model;
+use tracing::{debug_span, Span};
 
 /// A trait that provides a standardized interface for database operations, implementing the Repository pattern.
 ///
@@ -90,7 +91,7 @@ use crate::prelude::Pool;
     label = "this type does not implement `Repository` for model type `{M}`",
     message = "`{Self}` must implement `Repository<{M}>` to provide database operations for `{M}`"
 )]
-pub trait Repository<M>
+pub trait Repository<M>: Sync
 where
     M: Model,
 {

@@ -1,7 +1,7 @@
 //! Sql filtering trait for defining type safe dynamic filters.
 
-use sqlx::{Database as DatabaseTrait, QueryBuilder};
 use crate::types::Database;
+use sqlx::{Database as DatabaseTrait, QueryBuilder};
 
 /// Trait for creating SQL filter conditions that can be applied to database queries.
 ///

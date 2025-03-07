@@ -1,8 +1,10 @@
 #![allow(dead_code)]
 
-use sqlx::QueryBuilder;
+use parking_lot::ArcMutexGuard;
+use sqlx::{QueryBuilder, Transaction};
+use sqlx_utils::prelude::transaction::TransactionRepository;
 use sqlx_utils::prelude::*;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 pub static DATABASE_URL: LazyLock<String> =
@@ -14,7 +16,8 @@ sql_filter! {
     }
 }
 
-struct User {
+#[derive(Clone)]
+pub struct User {
     id: i64,
     name: String,
 }
@@ -68,6 +71,88 @@ repository_delete! {
     }
 }
 
+pub enum UserContext {
+    System,
+    UnAuthenticated,
+}
+
+#[derive(Debug)]
+pub enum DbError {
+    SqlxError(sqlx::Error),
+    SqlxUtils(sqlx_utils::Error),
+    NotAllowed,
+}
+
+impl From<sqlx::Error> for DbError {
+    fn from(e: sqlx::Error) -> Self {
+        DbError::SqlxError(e)
+    }
+}
+
+impl From<sqlx_utils::Error> for DbError {
+    fn from(e: sqlx_utils::Error) -> Self {
+        DbError::SqlxUtils(e)
+    }
+}
+
+impl UserRepo {
+    pub async fn save_with_context(
+        &self,
+        model: User,
+        context: UserContext,
+    ) -> Result<User, DbError> {
+        self.with_transaction(move |mut tx| async move {
+            let res = match context {
+                UserContext::System => self
+                    .save_with_executor(&mut *tx, model)
+                    .await
+                    .map_err(Into::into),
+                UserContext::UnAuthenticated => Err(DbError::NotAllowed),
+            };
+
+            (res, tx)
+        })
+        .await
+    }
+
+    pub async fn save_with_tx<'a, 'b>(&'a self, model: User) -> Result<Vec<User>, DbError> {
+        self.transaction_sequential::<'a, 'b>([
+            move |mut tx: Transaction<'b, Database>| async move {
+                let res = self.save_with_executor(&mut *tx, model).await;
+
+                (res, tx)
+            },
+        ])
+        .await
+        .map_err(Into::into)
+    }
+
+    pub async fn save_with_rx_concurrent<'a, 'b>(
+        &'a self,
+        model: User,
+    ) -> Result<Vec<User>, DbError>
+    where
+        'b: 'a,
+    {
+        self.transaction_concurrent::<'a, 'b>([
+            |tx: Arc<parking_lot::Mutex<Transaction<'b, Database>>>| async move {
+                let mut tx = match tx.try_lock_arc() {
+                    Some(tx) => tx,
+                    None => return Err(Error::MutexLockError),
+                };
+
+                let res = USER_REPO.save_with_executor(&mut **tx, model).await;
+
+                ArcMutexGuard::<parking_lot::RawMutex, Transaction<'b, sqlx::Any>>::unlock_fair(tx);
+
+                res
+            },
+        ])
+        .await
+        .map_err(Into::into)
+    }
+}
+
 #[tokio::main]
 async fn main() {
     install_default_drivers();
@@ -89,5 +174,10 @@ async fn main() {
         name: String::new(),
     };
 
-    USER_REPO.save(&user).await.unwrap();
+    USER_REPO.save_ref(&user).await.unwrap();
+
+    USER_REPO
+        .save_with_context(user.clone(), UserContext::System)
+        .await
+        .unwrap();
 }

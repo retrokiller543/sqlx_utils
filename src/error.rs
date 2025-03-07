@@ -9,6 +9,8 @@ pub enum Error {
     Repository { message: Cow<'static, str> },
     #[error(transparent)]
     Sqlx(#[from] sqlx::Error),
+    #[error("Failed to acquire lock on mutex")]
+    MutexLockError,
     #[error(transparent)]
     Boxed(Box<dyn std::error::Error + Send>),
 }

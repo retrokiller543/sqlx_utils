@@ -4,6 +4,8 @@ use crate::prelude::Database;
 use crate::traits::{InsertableRepository, Model, UpdatableRepository};
 use crate::utils::{tracing_debug_log, BatchOperator, DEFAULT_BATCH_SIZE};
 use sqlx::Executor;
+use std::future::Future;
+use std::pin::Pin;
 
 /// Trait for repositories that can intelligently save records by either inserting or updating them.
 ///
@@ -84,6 +86,7 @@ use sqlx::Executor;
     label = "this type cannot automatically save `{M}` records",
     message = "`{Self}` must implement both `InsertableRepository<{M}>` and `UpdatableRepository<{M}>` to gain `SaveRepository<{M}>` capabilities"
 )]
+#[async_trait::async_trait]
 pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepository<M> {
     tracing_debug_log! {
         [skip_all, Self::repository_span(), "save",]
@@ -111,19 +114,84 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
         /// }
         /// ```
         #[inline]
-        async fn save_with_executor<'c, E>(
-            &self,
+        fn save_with_executor<'a, 'b, 'async_trait, E>(
+            &'a self,
             tx: E,
-            model: &M
-        ) -> crate::Result<()>
+            model: M
+        ) -> Pin<
+            Box<
+                dyn Future<
+                    Output = crate::Result<M>,
+                > + Send + 'async_trait,
+            >,
+        >
         where
-            E: Executor<'c, Database = Database>,
+            'a: 'async_trait,
+            Self: 'async_trait,
+            M: 'async_trait,
+            E: Executor<'b, Database = Database>+ 'async_trait,
         {
-             if model.get_id().is_none() {
-                <Self as InsertableRepository<M>>::insert_with_executor(self, tx, model).await
-            } else {
-                <Self as UpdatableRepository<M>>::update_with_executor(self, tx, model).await
-            }
+            Box::pin(async move {
+                if model.get_id().is_none() {
+                    <Self as InsertableRepository<M>>::insert_with_executor(self, tx, model).await
+                } else {
+                    <Self as UpdatableRepository<M>>::update_with_executor(self, tx, model).await
+                }
+            })
+        }
+    }
+
+    tracing_debug_log! {
+        [skip_all, Self::repository_span(), "save",]
+        /// Intelligently persists a model instance by either inserting or updating using the [`Executor`] `tx`.
+        ///
+        /// This method determines the appropriate operation based on whether the model
+        /// has an ID:
+        /// - If the model has no ID, it performs an insertion
+        /// - If the model has an ID, it performs an update
+        ///
+        /// # Parameters
+        ///
+        /// * `tx` - The executor to use for the query
+        /// * `model` - A reference to the model instance to save
+        ///
+        /// # Returns
+        ///
+        /// * [`crate::Result<()>`](crate::Result) - Success if the operation was executed, or an error if it failed
+        ///
+        /// # Example
+        ///
+        /// ```no_compile
+        /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
+        ///     repo.save(user).await // Will insert or update based on user.id
+        /// }
+        /// ```
+        #[inline]
+        fn save_ref_with_executor<'a, 'b, 'c, 'async_trait, E>(
+            &'a self,
+            tx: E,
+            model: &'b M
+        ) -> Pin<
+            Box<
+                dyn Future<
+                    Output = crate::Result<()>,
+                > + Send + 'async_trait,
+            >,
+        >
+        where
+            'a: 'async_trait,
+            'b: 'async_trait,
+            Self: 'async_trait,
+            M: 'async_trait,
+            E: Executor<'c, Database = Database>+ 'async_trait,
+        {
+            Box::pin(async move {
+                if model.get_id().is_none() {
+                    <Self as InsertableRepository<M>>::insert_ref_with_executor(self, tx, model).await
+                } else {
+                    <Self as UpdatableRepository<M>>::update_ref_with_executor(self, tx, model).await
+                }
+            })
         }
     }
 
@@ -150,8 +218,41 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     /// }
     /// ```
     #[inline(always)]
-    async fn save(&self, model: &M) -> crate::Result<()> {
+    async fn save(&self, model: M) -> crate::Result<M>
+    where
+        M: 'async_trait,
+    {
         self.save_with_executor(self.pool(), model).await
+    }
+
+    /// Intelligently persists a model instance by either inserting or updating.
+    ///
+    /// This method determines the appropriate operation based on whether the model
+    /// has an ID:
+    /// - If the model has no ID, it performs an insertion
+    /// - If the model has an ID, it performs an update
+    ///
+    /// # Parameters
+    ///
+    /// * `model` - A reference to the model instance to save
+    ///
+    /// # Returns
+    ///
+    /// * [`crate::Result<()>`](crate::Result) - Success if the operation was executed, or an error if it failed
+    ///
+    /// # Example
+    ///
+    /// ```no_compile
+    /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
+    ///     repo.save(user).await // Will insert or update based on user.id
+    /// }
+    /// ```
+    #[inline(always)]
+    async fn save_ref(&self, model: &M) -> crate::Result<()>
+    where
+        M: 'async_trait,
+    {
+        self.save_ref_with_executor(self.pool(), model).await
     }
 
     /// Saves multiple models using the default batch size.
@@ -168,8 +269,12 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     ///
     /// * [`crate::Result<()>`](crate::Result) - Success if all operations were executed, or an error if any failed
     #[inline]
-    async fn save_all(&self, models: impl IntoIterator<Item = M>) -> crate::Result<()> {
-        <Self as SaveRepository<M>>::save_batch::<DEFAULT_BATCH_SIZE>(self, models).await
+    async fn save_all<I>(&self, models: I) -> crate::Result<()>
+    where
+        I: IntoIterator<Item = M> + Send + 'async_trait,
+        I::IntoIter: Send,
+    {
+        <Self as SaveRepository<M>>::save_batch::<DEFAULT_BATCH_SIZE, I>(self, models).await
     }
 
     tracing_debug_log! {
@@ -212,14 +317,21 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
         /// Consider batch size carefully:
         /// - Too small: More overhead from multiple transactions
         /// - Too large: Higher memory usage and longer transaction times
-        async fn save_batch<const N: usize>(
-            &self,
-            models: impl IntoIterator<Item = M>,
-        ) -> crate::Result<()> {
+        fn save_batch<'a, 'async_trait, const N: usize, I>(
+            &'a self,
+            models: I,
+        ) -> Pin<Box<dyn Future<Output = crate::Result<()>> + Send + 'async_trait>>
+        where
+            I: IntoIterator<Item = M> + Send + 'async_trait,
+            I::IntoIter: Send,
+            'a: 'async_trait,
+            Self: 'async_trait,
+            M: 'async_trait,
+        {
             let span = tracing::Span::current();
             span.record("BATCH_SIZE", N);
 
-            BatchOperator::<M, N>::execute_batch(models, |batch| async {
+            let op = BatchOperator::<M, N>::execute_batch(models, |batch| async {
                 let mut update = Vec::new();
                 let mut insert = Vec::new();
 
@@ -233,22 +345,26 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
 
                 match (update.is_empty(), insert.is_empty()) {
                     (false, false) => {
-                        futures::try_join!(<Self as UpdatableRepository<M>>::update_batch::<N>(self, update), <Self as InsertableRepository<M>>::insert_batch::<N>(self, insert))?;
+                        futures::try_join!(<Self as UpdatableRepository<M>>::update_batch::<N, Vec<M>>(self, update), <Self as InsertableRepository<M>>::insert_batch::<N, Vec<M>>(self, insert))?;
                     }
                     (false, true) => {
-                        <Self as UpdatableRepository<M>>::update_batch::<N>(self, update).await?;
+                        <Self as UpdatableRepository<M>>::update_batch::<N, Vec<M>>(self, update).await?;
                     }
                     (true, false) => {
-                        <Self as InsertableRepository<M>>::insert_batch::<N>(self, insert).await?;
+                        <Self as InsertableRepository<M>>::insert_batch::<N, Vec<M>>(self, insert).await?;
                     }
                     (true, true) => {}
                 }
 
                 Ok(())
+            });
+
+            Box::pin(async move {
+                op.await
             })
-                .await
         }
     }
 }
 
+#[async_trait::async_trait]
 impl<M: Model, T: InsertableRepository<M> + UpdatableRepository<M>> SaveRepository<M> for T {}
