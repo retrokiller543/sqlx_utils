@@ -61,7 +61,7 @@ use sqlx::{Database as DatabaseTrait, Executor, FromRow};
 ///         sqlx::query_as("SELECT * FROM users")
 ///     }
 ///
-///     fn get_by_id_query(&self, id: impl Into<User::Id>) -> QueryAs<User> {
+///     fn get_by_id_query(&self, id: impl Into<i32>) -> QueryAs<User> {
 ///         let id = id.into();
 ///         sqlx::query_as("SELECT * FROM users WHERE id = $1")
 ///             .bind(id)
@@ -145,7 +145,7 @@ where
     ///
     /// # Implementation Example
     ///
-    /// ```rust,no_compile
+    /// ```rust,ignore
     /// fn get_by_id_query(&self, id: impl Into<User::Id>) -> QueryAs<User> {
     ///     let id = id.into();
     ///     sqlx::query_as("SELECT * FROM users WHERE id = $1")
@@ -153,7 +153,7 @@ where
     /// }
     /// ```
     ///
-    /// ```rust,no_compile
+    /// ```rust,ignore
     /// fn get_by_id_query(&self, id: impl Into<User::Id>) -> QueryAs<User> {
     ///     let id = id.into();
     ///     sqlx::query_as!(User, "SELECT * FROM users WHERE id = $1", id)
@@ -183,7 +183,7 @@ where
         ///
         /// # Example
         ///
-        /// ```rust,no_compile
+        /// ```rust,ignore
         /// async fn get_users_in_transaction<'a>(&self, tx: &mut Transaction<'a, Database>) -> Result<Vec<User>> {
         ///     self.get_all_with_executor(&mut *tx).await
         /// }
@@ -249,7 +249,7 @@ where
         ///
         /// # Example
         ///
-        /// ```rust,no_compile
+        /// ```rust,ignore
         /// async fn get_user_in_transaction<'a>(&self, tx: &mut Transaction<'a, Database>, id: i32) -> Result<Option<User>> {
         ///     self.get_by_id_with_executor(&mut *tx, id).await
         /// }

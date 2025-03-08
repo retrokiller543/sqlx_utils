@@ -1,3 +1,4 @@
+use crate::error::ErrorExt;
 use crate::types::crate_name;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
@@ -52,10 +53,27 @@ pub(crate) enum SqlOperator {
     NotIn,
 }
 
+impl SqlOperator {
+    /// - `=` → `equals`
+    /// - `!=` → `not_equals`
+    /// - `>` → `greater_than`
+    /// - `<` → `less_than`
+    /// - `>=` → `greater_than_or_equal`
+    /// - `<=` → `less_than_or_equal`
+    /// - `LIKE` → `like`
+    /// - `ILIKE` → `i_like`
+    /// - `IN` → `in_values`
+    /// - `NOT IN` → `not_in_values`
+    pub(crate) const SUPPORTED: [&'static str; 10] = [
+        "=", "!=", ">", "<", ">=", "<=", "LIKE", "ILIKE", "IN", "NOT IN",
+    ];
+}
+
 impl Parse for SqlOperator {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
 
+        let mut span;
         if lookahead.peek(Token![=]) {
             input.parse::<Token![=]>()?;
             Ok(SqlOperator::Equals)
@@ -76,7 +94,10 @@ impl Parse for SqlOperator {
                 Ok(SqlOperator::LessThan)
             }
         } else {
-            let op: Ident = input.parse()?;
+            span = input.span();
+            let op: Ident = input.parse().map_err(|err| {
+                err.with_context("Expected a identifier as the operator", Some(span))
+            })?;
             match op.to_string().to_uppercase().as_str() {
                 "LIKE" => Ok(SqlOperator::Like),
                 "ILIKE" => Ok(SqlOperator::ILike),
@@ -86,16 +107,34 @@ impl Parse for SqlOperator {
                         input.parse::<Token![=]>()?;
                         Ok(SqlOperator::NotEquals)
                     } else {
-                        let next: Ident = input.parse()?;
+                        span = input.span();
+                        let next: Ident = input.parse().map_err(|err| {
+                            err.with_context(
+                                "Expected to find `IN` after `NOT` but did not find a identifier",
+                                Some(span),
+                            )
+                        })?;
                         if next.to_string().to_uppercase() == "IN" {
                             Ok(SqlOperator::NotIn)
                         } else {
-                            Err(syn::Error::new(next.span(), "Expected 'IN' after 'NOT'"))
+                            Err(syn::Error::new(
+                                next.span(),
+                                format!("Expected `IN` after `NOT`, found `{}`", next),
+                            ))
                         }
                     }
                 }
-                _ => Err(syn::Error::new(op.span(), "Invalid SQL operator")),
+                invalid => Err(syn::Error::new(
+                    op.span(),
+                    format!("Invalid SQL operator `{}`", invalid),
+                )),
             }
+            .map_err(|error| {
+                error.with_context(
+                    format!("Supported operators are: {:?}", SqlOperator::SUPPORTED),
+                    Some(span),
+                )
+            })
         }
     }
 }

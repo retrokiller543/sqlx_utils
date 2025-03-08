@@ -1,7 +1,9 @@
+use crate::error::ErrorExt;
 use crate::types::columns::Columns;
 use crate::types::expression::Expression;
 use proc_macro2::Ident;
 use syn::parse::{Parse, ParseStream};
+use syn::Error;
 
 /// Represents the SQL query portion of a filter definition.
 ///
@@ -34,26 +36,44 @@ pub(crate) struct FilterSql {
 
 impl Parse for FilterSql {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let mut span = input.span();
         let select = input.parse::<Ident>()?;
 
         if select.to_string().to_uppercase().as_str() != "SELECT" {
-            return Err(input.error("Expected `SELECT`"));
+            return Err(Error::new(
+                span,
+                format!("Expected `SELECT`, found `{}`", select),
+            ));
         }
 
         let columns = input.parse()?;
 
+        span = input.span();
         let from = input.parse::<Ident>()?;
 
         if from.to_string().to_uppercase().as_str() != "FROM" {
-            return Err(input.error("Expected `FROM`"));
+            return Err(Error::new(
+                span,
+                format!("Expected `FROM`, found `{}`", from),
+            ));
         }
 
-        let table_name: Ident = input.parse()?;
+        span = input.span();
+        let table_name: Ident = input.parse().with_context(
+            "Failed to parse table name, expected an identifier",
+            Some(span),
+        )?;
 
-        let where_ident = input.parse::<Ident>()?;
+        span = input.span();
+        let where_ident = input
+            .parse::<Ident>()
+            .with_context("Expected an identifier after the table name", Some(span))?;
 
         if where_ident.to_string().to_uppercase().as_str() != "WHERE" {
-            return Err(input.error("Expected `WHERE`"));
+            return Err(Error::new(
+                span,
+                format!("Expected `WHERE`, found `{}`", where_ident),
+            ));
         }
 
         let expr = input.parse()?;

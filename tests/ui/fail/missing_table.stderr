@@ -1,0 +1,11 @@
+error: Expected `FROM`, found `WHERE`
+ --> tests/ui/fail/missing_table.rs:5:18
+  |
+5 |         SELECT * WHERE  // Missing FROM clause
+  |                  ^^^^^
+
+error[E0433]: failed to resolve: use of undeclared type `UserFilter`
+  --> tests/ui/fail/missing_table.rs:11:19
+   |
+11 |     let _filter = UserFilter::new(1);
+   |                   ^^^^^^^^^^ use of undeclared type `UserFilter`

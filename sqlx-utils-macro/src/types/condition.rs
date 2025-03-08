@@ -1,3 +1,4 @@
+use crate::error::ErrorExt;
 use crate::types::columns::ColumnVal;
 use crate::types::sql_operator::SqlOperator;
 use proc_macro2::Ident;
@@ -63,18 +64,35 @@ impl Parse for Condition {
             input.parse::<Token![?]>()?;
         }
 
-        let column_name = input.parse()?;
+        let mut span = input.span();
+        let column_name = input.parse().map_err(|err| {
+            err.with_context(
+                "Failed to parse column name, expected a identifier",
+                Some(span),
+            )
+        })?;
         let mut field_alias = None;
 
         let lookahead = input.lookahead1();
 
         if lookahead.peek(Token![as]) {
             input.parse::<Token![as]>()?;
-            field_alias = input.parse()?;
+
+            span = input.span();
+            field_alias = input.parse().map_err(|err| {
+                err.with_context(
+                    "Failed to parse field alias, expected a identifier",
+                    Some(span),
+                )
+            })?;
         }
 
         let operator = input.parse()?;
-        let column_type = input.parse()?;
+
+        span = input.span();
+        let column_type = input
+            .parse()
+            .map_err(|err| err.with_context("Failed to parse Column value", Some(span)))?;
 
         Ok(Self {
             column_name,

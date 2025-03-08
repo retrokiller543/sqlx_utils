@@ -1,3 +1,4 @@
+use crate::error::ErrorExt;
 use crate::types::columns::ColumnVal;
 use crate::types::condition::Condition;
 use crate::types::crate_name;
@@ -46,23 +47,38 @@ pub(crate) enum Expression {
 
 impl Expression {
     pub fn parse_operator(self, input: ParseStream) -> syn::Result<Self> {
-        let op: Option<Ident> = input.parse()?;
+        let mut span = input.span();
+        let op: Option<Ident> = input
+            .parse()
+            .map_err(|err| err.with_context("Failed to parse operator", Some(span)))?;
 
         match op.map(|i| i.to_string().to_uppercase()) {
             Some(op) if op == *"AND" => {
-                let right = Self::parse(input)?;
+                span = input.span();
+                let right = Self::parse(input).map_err(|err| {
+                    err.with_context("Failed to parse right hand side of expression", Some(span))
+                })?;
                 Ok(Expression::And(Box::new(self), Box::new(right)))
             }
             Some(op) if op == *"OR" => {
-                let right = Self::parse(input)?;
+                span = input.span();
+                let right = Self::parse(input).map_err(|err| {
+                    err.with_context("Failed to parse right hand side of expression", Some(span))
+                })?;
                 Ok(Expression::Or(Box::new(self), Box::new(right)))
             }
             Some(op) if op == *"NOT" => {
-                let expr = Self::parse(input)?;
+                span = input.span();
+                let expr = Self::parse(input).map_err(|err| {
+                    err.with_context("Failed to parse negated expression", Some(span))
+                })?;
                 Ok(Expression::Not(Box::new(expr)))
             }
             None => Ok(self),
-            Some(op) => Err(syn::Error::new(op.span(), "Unexpected operator")),
+            Some(op) => Err(syn::Error::new(
+                op.span(),
+                "Unexpected operator, `{}` expected one of `AND`, `OR`, or `NOT`",
+            )),
         }
     }
 
@@ -96,7 +112,9 @@ impl Parse for Expression {
         if input.peek(syn::token::Paren) {
             let content;
             syn::parenthesized!(content in input);
-            let expr = Self::parse(&content)?;
+            let span = content.span();
+            let expr = Self::parse(&content)
+                .map_err(|err| err.with_context("Failed parse inner Expression", Some(span)))?;
 
             if !input.is_empty() {
                 return expr.parse_operator(input);
@@ -106,7 +124,11 @@ impl Parse for Expression {
         }
 
         // Base condition
-        let left = Expression::Condition(input.parse()?);
+        let span = input.span();
+        let left =
+            Expression::Condition(input.parse().map_err(|err| {
+                err.with_context("Failed to parse condition expression", Some(span))
+            })?);
 
         left.parse_operator(input)
     }

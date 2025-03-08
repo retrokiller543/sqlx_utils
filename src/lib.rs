@@ -5,6 +5,7 @@ pub mod filter;
 mod macros;
 pub mod pool;
 pub mod prelude;
+mod test;
 pub mod traits;
 pub mod types;
 pub mod utils;

@@ -32,6 +32,9 @@ cfg-if = "1.0.0"
 async-trait = "0.1.87"
 parking_lot = { version = "0.12.3", features = ["send_guard", "arc_lock"] }
 
+[dev-dependencies]
+trybuild = "1.0"
+
 [features]
 default = ["any", "filter_debug_impl"]
 sqlite = ["sqlx-utils-macro/sqlite", "sqlx/sqlite"]

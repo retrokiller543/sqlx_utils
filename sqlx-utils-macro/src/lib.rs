@@ -5,6 +5,7 @@ use types::filter_table::FilterTable;
 
 const CRATE_NAME_STR: &str = "sqlx_utils";
 
+mod error;
 mod types;
 
 /// Creates a type-safe SQL filter struct with builder methods using SQL-like syntax.

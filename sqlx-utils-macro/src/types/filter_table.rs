@@ -201,7 +201,7 @@ impl ToTokens for FilterTable {
         let expanded = quote! {
             impl<'args> #crate_name::traits::SqlFilter<'args> for #name {
                 #[inline]
-                fn apply_filter(self, builder: &mut ::sqlx::QueryBuilder<'args, #db_type>) {
+                fn apply_filter(self, builder: &mut ::sqlx_utils::types::QueryBuilder<'args, #db_type>) {
                     #expr.apply_filter(builder);
                 }
 

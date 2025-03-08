@@ -21,7 +21,7 @@ use sqlx::{Executor, QueryBuilder};
 ///
 /// Basic implementation:
 /// ```rust
-/// # use sqlx_utils::prelude::SqlFilter;
+/// # use sqlx_utils::prelude::{QueryBuilder, SqlFilter};
 /// use sqlx_utils::traits::{Model, Repository, DeleteRepository};
 /// # use sqlx_utils::types::{Pool, Query};
 /// # struct User { id: i32, name: String }
@@ -40,15 +40,15 @@ use sqlx::{Executor, QueryBuilder};
 ///             .bind(id)
 ///     }
 ///
-///     fn delete_by_filter_query<'args>(filter: impl SqlFilter<'args>) -> Query<'args> {
-///         let mut builder = sqlx::query_builder::QueryBuilder::new("DELETE FROM users");
+///     fn delete_by_filter_query<'args>(filter: impl SqlFilter<'args>) -> QueryBuilder<'args> {
+///         let mut builder = QueryBuilder::new("DELETE FROM users");
 ///
 ///         if filter.should_apply_filter() {
 ///             builder.push("WHERE ");
 ///             filter.apply_filter(&mut builder);
 ///         }
 ///
-///         builder.build()
+///         builder
 ///     }
 /// }
 ///
@@ -66,9 +66,7 @@ use sqlx::{Executor, QueryBuilder};
 ///
 /// Using the macro for simpler implementation:
 /// ```rust
-/// # use sqlx_utils::{repository, repository_delete};
-/// # use sqlx_utils::traits::Model;
-/// # use sqlx_utils::types::Query;
+/// # use sqlx_utils::prelude::*;
 /// # struct User { id: i32, name: String }
 /// # impl Model for User {
 /// #     type Id = i32;
@@ -87,6 +85,17 @@ use sqlx::{Executor, QueryBuilder};
 ///     delete_by_id_query(id) {
 ///         sqlx::query("DELETE FROM users WHERE id = $1")
 ///             .bind(id)
+///     }
+///
+///     delete_by_filter_query(filter) {
+///         let mut builder = QueryBuilder::new("DELETE FROM users");
+///
+///         if filter.should_apply_filter() {
+///             builder.push("WHERE ");
+///             filter.apply_filter(&mut builder);
+///         }
+///
+///         builder
 ///     }
 /// }
 /// ```
