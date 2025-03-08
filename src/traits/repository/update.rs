@@ -324,7 +324,7 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
         ///
         /// Consider batch size carefully:
         /// - Too small: More overhead from multiple transactions
-        /// - Too large: Higher memory usage and longer transaction times
+        /// - Too large: Higher memory usage and longer transactions times
         #[inline(always)]
         fn update_batch<'a, 'async_trait, const N: usize, I>(
             &'a self,

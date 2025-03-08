@@ -44,8 +44,8 @@ use std::pin::Pin;
 ///
 /// // Usage
 /// # async fn example(repo: &UserRepository, user: &User) -> sqlx_utils::Result<()> {
-/// // Insert a single user
-/// repo.insert(user).await?;
+/// // Insert a single user via a reference
+/// repo.insert_ref(user).await?;
 ///
 /// // Insert multiple users
 /// let users = vec![
@@ -105,7 +105,7 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
     ///
     /// This method defines how a model should be persisted in the database as a new record.
     /// It constructs a parameterized query that maps the model's fields to database columns.
-    /// The query is returned without being executed, allowing for transaction management
+    /// The query is returned without being executed, allowing for transactions management
     /// and error handling at a higher level.
     ///
     /// # Parameters
@@ -134,11 +134,11 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
         /// # Parameters
         ///
         /// * `tx` - The executor to use for the query
-        /// * `model` - A reference to the model instance to insert
+        /// * `model` - The model instance to insert
         ///
         /// # Returns
         ///
-        /// * [`crate::Result<()>`](crate::Result) - Success if the insertion was executed, or an error if the operation failed
+        /// * [`crate::Result<M>`](crate::Result) - Success if the insertion was executed, or an error if the operation failed
         ///
         /// # Example
         ///
@@ -363,7 +363,7 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
         ///
         /// The method:
         /// 1. Chunks the input into batches of size N
-        /// 2. Processes each batch in a transaction
+        /// 2. Processes each batch in a transactions
         /// 3. Uses the [`insert_query`](InsertableRepository::insert_query) query for each model
         /// 4. Maintains ACID properties within each batch
         ///
@@ -371,7 +371,7 @@ pub trait InsertableRepository<M: Model>: Repository<M> {
         ///
         /// Consider batch size carefully:
         /// - Too small: More overhead from multiple transactions
-        /// - Too large: Higher memory usage and longer transaction times
+        /// - Too large: Higher memory usage and longer transactions times
         #[inline(always)]
         fn insert_batch<'a, 'async_trait, const N: usize, I>(
             &'a self,

@@ -2,7 +2,6 @@
 
 use parking_lot::ArcMutexGuard;
 use sqlx::{QueryBuilder, Transaction};
-use sqlx_utils::prelude::transaction::TransactionRepository;
 use sqlx_utils::prelude::*;
 use std::sync::{Arc, LazyLock};
 use std::time::Duration;
@@ -195,10 +194,17 @@ async fn main() {
 
     USER_REPO.save_ref(&user).await.unwrap();
 
+    USER_REPO.save_in_transaction(user.clone()).await.unwrap();
+
     USER_REPO
         .save_with_context(user.clone(), UserContext::System)
         .await
         .unwrap();
 
     USER_REPO.with_transaction(action).await.unwrap();
+
+    USER_REPO
+        .delete_by_values_in_transaction("id", [1, 2, 3, 11, 22])
+        .await
+        .unwrap();
 }

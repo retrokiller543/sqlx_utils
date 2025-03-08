@@ -1,3 +1,5 @@
+//! Extension to [`SaveRepository`] to add transaction based saving.
+
 use crate::prelude::{Model, SaveRepository, TransactionRepository};
 use std::future::Future;
 
@@ -6,15 +8,15 @@ use std::future::Future;
 /// This trait provides convenience methods for using transactions with repositories
 /// that implement [`SaveRepository`]. It's automatically implemented for any type that
 /// implements both [`SaveRepository<M>`] and [`TransactionRepository<M>`].
-pub trait SaveRepositoryTransactionExt<M>: SaveRepository<M> + TransactionRepository<M>
+pub trait SaveRepositoryTransaction<M>: SaveRepository<M> + TransactionRepository<M>
 where
     M: Model + Send + Sync,
 {
-    /// Saves a model in a transaction, ensuring atomicity.
+    /// Saves a model in a transactions, ensuring atomicity.
     ///
     /// This method:
-    /// 1. Creates a transaction using [`with_transaction`](TransactionRepository)
-    /// 2. Calls [`save_with_executor`](SaveRepository::save_with_executor) with the transaction
+    /// 1. Creates a transactions using [`with_transaction`](TransactionRepository)
+    /// 2. Calls [`save_with_executor`](SaveRepository::save_with_executor) with the transactions
     /// 3. Returns the model on successful save
     ///
     /// # Parameters
@@ -48,7 +50,7 @@ where
 }
 
 // Blanket implementation for any repository that implements both required traits
-impl<T, M> SaveRepositoryTransactionExt<M> for T
+impl<T, M> SaveRepositoryTransaction<M> for T
 where
     T: SaveRepository<M> + TransactionRepository<M>,
     M: Model + Send + Sync,

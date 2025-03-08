@@ -1,12 +1,12 @@
 //! [`Repository`] Trait to define a database repository
 
-mod_def! {
-    pub mod insert;
-    pub mod update;
-    pub mod save;
-    pub mod select;
-    pub mod delete;
-    pub mod transaction;
+mod_def! {!export
+    pub(crate) mod insert;
+    pub(crate) mod update;
+    pub(crate) mod save;
+    pub(crate) mod select;
+    pub(crate) mod delete;
+    pub(crate) mod transactions;
 }
 
 use crate::mod_def;
@@ -76,7 +76,7 @@ use tracing::{debug_span, Span};
 /// # Error Handling
 ///
 /// Repository methods return [`crate::Result<T>`], providing consistent error handling across
-/// the application. This includes database errors, validation errors, and transaction errors.
+/// the application. This includes database errors, validation errors, and transactions errors.
 ///
 /// # Implementation Notes
 ///

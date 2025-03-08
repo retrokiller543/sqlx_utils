@@ -316,7 +316,7 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
         ///
         /// Consider batch size carefully:
         /// - Too small: More overhead from multiple transactions
-        /// - Too large: Higher memory usage and longer transaction times
+        /// - Too large: Higher memory usage and longer transactions times
         fn save_batch<'a, 'async_trait, const N: usize, I>(
             &'a self,
             models: I,

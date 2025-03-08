@@ -1,4 +1,8 @@
 //! Transaction related traits.
+//!
+//! There are many issues with lifetimes when using [`Transaction`] from [`sqlx`], this is due to
+//! the implementation in [`sqlx`] and from my testing cant be fixed without the inner traits being
+//! implemented using [`async_trait`], if this changes in the future then I will fix this
 
 use crate::{
     mod_def,
@@ -11,29 +15,33 @@ use std::future::Future;
 use std::sync::Arc;
 
 mod_def! {
-    pub mod save_transaction;
+    !export
+    pub(crate) mod insert_tx;
+    pub(crate) mod update_tx;
+    pub(crate) mod delete_tx;
+    pub(crate) mod save_tx;
 }
 
 /// Extension trait for Repository to work with transactions
 ///
-/// This trait adds transaction capabilities to any repository that implements
+/// This trait adds transactions capabilities to any repository that implements
 /// the [`Repository`] trait. It provides several methods for executing operations
 /// within database transactions, with different strategies for concurrency and
 /// error handling.
 ///
 /// The trait is automatically implemented for any type that implements [`Repository<M>`],
-/// making transaction capabilities available to all repositories without additional code.
+/// making transactions capabilities available to all repositories without additional code.
 pub trait TransactionRepository<M>: Repository<M>
 where
     M: Model,
 {
-    /// Executes a callback within a transaction, handling the transaction lifecycle automatically.
+    /// Executes a callback within a transactions, handling the transactions lifecycle automatically.
     ///
     /// This method:
-    /// 1. Begins a transaction from the repository's connection pool
-    /// 2. Passes the transaction to the callback function
-    /// 3. Waits for the callback to complete and return both a result and the transaction
-    /// 4. Commits the transaction if the result is `Ok`, or rolls it back if it's `Err`
+    /// 1. Begins a transactions from the repository's connection pool
+    /// 2. Passes the transactions to the callback function
+    /// 3. Waits for the callback to complete and return both a result and the transactions
+    /// 4. Commits the transactions if the result is `Ok`, or rolls it back if it's `Err`
     /// 5. Returns the final result
     ///
     /// # Type Parameters
@@ -91,10 +99,10 @@ where
         }
     }
 
-    /// Executes multiple operations sequentially in a transaction, stopping at the first error.
+    /// Executes multiple operations sequentially in a transactions, stopping at the first error.
     ///
     /// This method provides an optimized approach for cases where you want to stop processing
-    /// as soon as any action fails, immediately rolling back the transaction.
+    /// as soon as any action fails, immediately rolling back the transactions.
     ///
     /// # Type Parameters
     ///
@@ -106,7 +114,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `actions`: An iterator of functions that will be executed in the transaction
+    /// * `actions`: An iterator of functions that will be executed in the transactions
     ///
     /// # Returns
     ///
@@ -116,10 +124,10 @@ where
     ///
     /// # Implementation Details
     ///
-    /// 1. Begins a transaction from the repository's connection pool
+    /// 1. Begins a transactions from the repository's connection pool
     /// 2. Executes each action sequentially, collecting results
-    /// 3. If any action fails, rolls back the transaction and returns the error
-    /// 4. If all actions succeed, commits the transaction and returns the results
+    /// 3. If any action fails, rolls back the transactions and returns the error
+    /// 4. If all actions succeed, commits the transactions and returns the results
     ///
     /// Due to complex lifetime bounds in underlying types we must take ownership and then return it
     /// back.
@@ -218,9 +226,9 @@ where
         }
     }
 
-    /// Executes multiple operations concurrently in a transaction.
+    /// Executes multiple operations concurrently in a transactions.
     ///
-    /// This method allows for concurrent execution of actions within a transaction,
+    /// This method allows for concurrent execution of actions within a transactions,
     /// which can significantly improve performance for I/O-bound operations.
     /// Note that this only works when the actions don't have data dependencies.
     ///
@@ -234,7 +242,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `actions`: An iterator of functions that will be executed concurrently in the transaction
+    /// * `actions`: An iterator of functions that will be executed concurrently in the transactions
     ///
     /// # Returns
     ///
@@ -244,17 +252,17 @@ where
     ///
     /// # Implementation Details
     ///
-    /// 1. Begins a transaction from the repository's connection pool
-    /// 2. Wraps the transaction in an [`Arc<Mutex<_>>`] to safely share it between concurrent operations [^mutex]
+    /// 1. Begins a transactions from the repository's connection pool
+    /// 2. Wraps the transactions in an [`Arc<Mutex<_>>`] to safely share it between concurrent operations [^mutex]
     /// 3. Creates futures for all actions but doesn't execute them yet
     /// 4. Executes all futures concurrently using [`try_join_all`]
-    /// 5. If all operations succeed, commits the transaction and returns the results
-    /// 6. If any operation fails, rolls back the transaction and returns the error
+    /// 5. If all operations succeed, commits the transactions and returns the results
+    /// 6. If any operation fails, rolls back the transactions and returns the error
     ///
     /// # Notes
     ///
     /// - Uses [`parking_lot::Mutex`] for better performance than `std::sync::Mutex`
-    /// - Requires the transaction to be safely shared between multiple futures
+    /// - Requires the transactions to be safely shared between multiple futures
     ///
     /// # Example
     ///
@@ -378,7 +386,7 @@ where
     /// Executes multiple operations and collects all results, committing only if all succeed.
     ///
     /// This method runs all actions sequentially, collecting results (both successes and failures).
-    /// The transaction is committed only if all actions succeed; otherwise, it's rolled back.
+    /// The transactions is committed only if all actions succeed; otherwise, it's rolled back.
     ///
     /// # Type Parameters
     ///
@@ -390,7 +398,7 @@ where
     ///
     /// # Parameters
     ///
-    /// * `actions`: An iterator of functions that will be executed in the transaction
+    /// * `actions`: An iterator of functions that will be executed in the transactions
     ///
     /// # Returns
     ///
@@ -400,10 +408,10 @@ where
     ///
     /// # Implementation Details
     ///
-    /// 1. Begins a transaction from the repository's connection pool
+    /// 1. Begins a transactions from the repository's connection pool
     /// 2. Executes each action sequentially, collecting all results and errors
-    /// 3. If any errors occurred, rolls back the transaction and returns all errors
-    /// 4. If all operations succeeded, commits the transaction and returns the results
+    /// 3. If any errors occurred, rolls back the transactions and returns all errors
+    /// 4. If all operations succeeded, commits the transactions and returns the results
     ///
     /// # Example
     ///

@@ -167,11 +167,11 @@ where
         ///
         /// This method is automatically provided based on your implementation of
         /// [`get_all_query`](SelectRepository::get_all_query). It allows you to execute
-        /// the query using a custom executor, such as a transaction.
+        /// the query using a custom executor, such as a transactions.
         ///
         /// # Type Parameters
         ///
-        /// * `E` - The executor type, such as a transaction or connection pool
+        /// * `E` - The executor type, such as a transactions or connection pool
         ///
         /// # Parameters
         ///
@@ -230,11 +230,11 @@ where
         ///
         /// This method is automatically provided based on your implementation of
         /// [`get_by_id_query`](SelectRepository::get_by_id_query). It allows you to execute
-        /// the query using a custom executor, such as a transaction.
+        /// the query using a custom executor, such as a transactions.
         ///
         /// # Type Parameters
         ///
-        /// * `E` - The executor type, such as a transaction or connection pool
+        /// * `E` - The executor type, such as a transactions or connection pool
         ///
         /// # Parameters
         ///

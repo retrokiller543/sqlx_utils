@@ -5,6 +5,12 @@ macro_rules! mod_def {
         #[allow(unused_imports)]
         $vis use $ident::*;)+
     };
+
+    {!export $($vis:vis mod $ident:ident $(;)?)+} => {
+        $($vis mod $ident;
+        #[allow(unused_imports)]
+        pub use $ident::*;)+
+    };
 }
 
 mod_def! {

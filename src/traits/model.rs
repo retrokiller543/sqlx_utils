@@ -96,7 +96,7 @@ use std::hash::Hash;
 )]
 pub trait Model: Send + Sync {
     /// The type used for model identification
-    type Id;
+    type Id: Send;
 
     /// Returns the model's identifier if available
     ///
@@ -105,6 +105,10 @@ pub trait Model: Send + Sync {
     /// * [`Some(Id)`](Some) - If the model has an identifier
     /// * [`None`] - If the model has no identifier
     fn get_id(&self) -> Option<Self::Id>;
+
+    fn has_id(&self) -> bool {
+        self.get_id().is_some()
+    }
 }
 
 impl<M> Model for Vec<M>
