@@ -1,50 +1,286 @@
-`sqlx-utils`, is designed to streamline database interactions using the `sqlx` library. It provides a convenient macro, `sql_filter`, for defining filter structs that can be applied to SQL queries, and the `repository` macro to easily set up repositories. The changes also include traits for models and repositories, error handling, and utility functions for batch operations. It also handles multiple database feature flags.
+# SQLx Utils
 
-Here's a breakdown of the key components:
+[![Crates.io](https://img.shields.io/crates/v/sqlx-utils.svg)](https://crates.io/crates/sqlx-utils)
+[![Documentation](https://docs.rs/sqlx-utils/badge.svg)](https://docs.rs/sqlx-utils)
+[![License](https://img.shields.io/crates/l/sqlx-utils.svg)](LICENSE)
 
-**1. `sql_filter` Macro:**
+SQLx Utils provides a comprehensive set of utilities for working with the [SQLx](https://github.com/launchbadge/sqlx) library in a structured and efficient way. It simplifies database interactions through type-safe filters, repository patterns, and powerful batch operations.
 
-This procedural macro allows you to define filter structs based on a simple SQL-like syntax.  It generates code that implements the `SqlFilter` trait for these structs. This trait defines how the filters are applied to `sqlx` query builders. The macro supports several SQL operators like `=`, `!=`, `>`, `<`, `>=`, `<=`, `LIKE`, `ILIKE`, `IN`, and `NOT IN`. It also handles optional fields and provides the flexibility to use raw SQL strings when needed.
+## Features
 
-**2. Filter Implementation:**
+- **Type-safe SQL Filters**: Define reusable filter structs with SQL-like syntax
+- **Repository Pattern**: Implement CRUD operations with minimal boilerplate
+- **Transaction Support**: Execute operations within transactions for data consistency
+- **Batch Operations**: Efficiently process large datasets in chunks
+- **Connection Pool Management**: Simplified access to database pools
+- **Multi-database Support**: Works with SQLx's supported database backends
+- **Comprehensive Tracing**: Built-in instrumentation for debugging and monitoring
 
-- **`src/filter/operators.rs`**: This file defines the core filter operators and their logic. It uses other macros like `sql_operator` and `sql_delimiter` to generate boilerplate code for each operator.
-- **`src/filter/mod.rs`**: This module provides a `Filter` struct that wraps the generated filter structs and provides methods like `and`, `or`, and `not` for combining filters.
+## Installation
 
-**3. `repository` Macro:**
+Add SQLx Utils to your `Cargo.toml`:
 
-This macro simplifies the creation of database repositories. It generates a new struct with a reference to the database pool. Optionally, if a model is provided, it can also implement the `Repository` trait automatically. The macro includes methods for inserting, updating, and deleting records, both individually and in batches. It supports three kinds of ways to interact with the database: with model, without model, or with default implementations.
+```toml
+[dependencies]
+sqlx-utils = "1.1.1"
+```
 
-**4. Repository Implementation:**
+By default, the crate enables the `any` database feature. To use a specific database:
 
-- **`src/traits/repository.rs`**: Defines the `Repository` trait, providing methods for interacting with the database. This includes basic CRUD operations and more advanced batch operations for better performance.
-- **`src/utils/batch.rs`**: Implements the `BatchOperator` struct, used by the repository for efficient batch processing.
+```toml
+[dependencies]
+sqlx-utils = { version = "1.1.0", default-features = false, features = ["postgres"] }
+```
 
-**5. Model Trait:**
+Available database features:
+- `any` (default): Works with any SQLx-supported database
+- `postgres`: PostgreSQL specific
+- `mysql`: MySQL specific
+- `sqlite`: SQLite specific
 
-- **`src/traits/model.rs`**: Defines the `Model` trait, providing a standardized way to identify database models. This trait is used by the repository for operations like saving and deleting.
+## Quick Start
 
-**6. Error Handling:**
+### Setting up the Connection Pool
 
-- **`src/error.rs`**: Defines the `Error` enum and `Result` type for consistent error handling throughout the crate.
+```rust
+use sqlx_utils::prelude::*;
 
-**7. Database Pool:**
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // For any DB (with the `any` feature)
+    install_default_drivers();
 
-- **`src/pool.rs`**: Provides a global database pool using `OnceLock` and functions for initializing and accessing the pool.
+    // Initialize the pool
+    let pool = PoolOptions::new()
+        .max_connections(5)
+        .connect("your_connection_string").await?;
 
-**8. Types:**
+    initialize_db_pool(pool);
 
-- **`src/types/mod.rs`**: Defines several type aliases like `Query` and `Pool`, likely to reduce boilerplate and improve readability.
+    Ok(())
+}
+```
 
-**9. Support for Multiple Databases:**
+### Defining a Filter
 
-- The build script (`build.rs`) detects if multiple database features (like "postgres", "mysql", "sqlite") are enabled and defaults to the "any" feature in that case, issuing a warning about potential conflicts.  This ensures that the crate remains functional even if a user accidentally enables multiple database features.
+```rust
+use sqlx_utils::prelude::*;
 
-**10. Feature Flags:**
-- Conditional compilation based on feature flags is heavily used in macros like `db_pool`, `db_type`, `sql_operator` and `sql_impl`, allowing for specialization based on the target database.
+sql_filter! {
+    pub struct UserFilter {
+        SELECT * FROM users WHERE
+        ?id = i64 AND
+        ?name LIKE String AND
+        ?age > i32
+    }
+}
 
-**11. Dependencies:**
+// Usage:
+let filter = UserFilter::new()
+    .id(42)
+    .name("Alice%");
+```
 
-The Cargo files show that the crate depends on `sqlx`, `tokio` (for asynchronous runtime), `futures` (for concurrent operations), and several other utility crates.  The `sqlx-utils-macro` crate depends on `syn` and `quote` for procedural macro development.
+### Creating a Repository
 
-This crate offers a cleaner, more organized way to interact with databases using `sqlx`, promoting code reusability and maintainability. The combination of the `sql_filter` and `repository` macros, along with the well-defined traits and error handling, makes it a robust and potentially useful tool for Rust developers working with SQL databases.
+```rust
+use sqlx_utils::prelude::*;
+
+// 1. Define your model
+struct User {
+    id: i64,
+    name: String,
+    email: String,
+}
+
+impl Model for User {
+    type Id = i64;
+
+    fn get_id(&self) -> Option<Self::Id> {
+        Some(self.id)
+    }
+}
+
+// 2. Create a repository
+repository! {
+    pub UserRepo<User>;
+}
+
+// 3. Implement operations
+repository_insert! {
+    UserRepo<User>;
+
+    insert_query(user) {
+        sqlx::query("INSERT INTO users (name, email) VALUES (?, ?)")
+            .bind(&user.name)
+            .bind(&user.email)
+    }
+}
+
+repository_update! {
+    UserRepo<User>;
+
+    update_query(user) {
+        sqlx::query("UPDATE users SET name = ?, email = ? WHERE id = ?")
+            .bind(&user.name)
+            .bind(&user.email)
+            .bind(user.id)
+    }
+}
+
+repository_delete! {
+    UserRepo<User>;
+
+    delete_by_id_query(id) {
+        sqlx::query("DELETE FROM users WHERE id = ?")
+            .bind(id)
+    }
+}
+```
+
+### Using the Repository
+
+```rust
+use sqlx_utils::prelude::*;
+
+#[tokio::main]
+async fn main() -> Result<(), sqlx_utils::Error> {
+    // Create a new user
+    let user = User {
+        id: 0, // Will be assigned by DB
+        name: "Alice".to_string(),
+        email: "alice@example.com".to_string(),
+    };
+
+    // Insert the user
+    let user = USER_REPO.insert(user).await?;
+
+    // Update the user
+    let user = User {
+        id: user.id,
+        name: "Alice Smith".to_string(),
+        email: user.email,
+    };
+    USER_REPO.update(user).await?;
+
+    // Delete the user
+    USER_REPO.delete_by_id(user.id).await?;
+
+    Ok(())
+}
+```
+
+### Working with Transactions
+
+```rust
+async fn transfer_funds(from: i64, to: i64, amount: f64) -> Result<(), sqlx_utils::Error> {
+    ACCOUNT_REPO.with_transaction(|mut tx| async move {
+        // Deduct from source account
+        let from_account = ACCOUNT_REPO.get_by_id_with_executor(&mut tx, from).await?
+            .ok_or_else(|| Error::Repository { message: "Source account not found".into() })?;
+        
+        let from_account = Account {
+            balance: from_account.balance - amount,
+            ..from_account
+        };
+        
+        ACCOUNT_REPO.update_with_executor(&mut tx, from_account).await?;
+        
+        // Add to destination account
+        let to_account = ACCOUNT_REPO.get_by_id_with_executor(&mut tx, to).await?
+            .ok_or_else(|| Error::Repository { message: "Destination account not found".into() })?;
+        
+        let to_account = Account {
+            balance: to_account.balance + amount,
+            ..to_account
+        };
+        
+        ACCOUNT_REPO.update_with_executor(&mut tx, to_account).await?;
+        
+        (Ok(()), tx)
+    }).await
+}
+```
+
+## Advanced Usage
+
+### Filter Composition
+
+```rust
+let admin_filter = UserFilter::new().role("admin");
+let active_filter = StatusFilter::new().status("active");
+
+// Combine filters
+let active_admins = admin_filter.and(active_filter);
+```
+
+### Batch Operations
+
+```rust
+// Process users in batches of 100
+let users: Vec<User> = get_many_users();
+USER_REPO.insert_batch::<100, _>(users).await?;
+```
+
+### Custom Repository Methods
+
+```rust
+impl UserRepo {
+    pub async fn find_by_email(&self, email: &str) -> Result<Option<User>, Error> {
+        let filter = UserFilter::new().email(email);
+        self.get_optional_by_filter(filter).await
+    }
+    
+    pub async fn save_with_audit(&self, user: User, actor: &str) -> Result<User, Error> {
+        self.with_transaction(|mut tx| async move {
+            let result = self.save_with_executor(&mut tx, user).await?;
+            
+            // Log audit record
+            let audit = AuditLog {
+                entity_type: "user",
+                entity_id: result.id.to_string(),
+                actor: actor.to_string(),
+                action: if result.get_id().is_none() { "create" } else { "update" }.to_string(),
+                timestamp: chrono::Utc::now(),
+            };
+            
+            AUDIT_REPO.insert_with_executor(&mut tx, audit).await?;
+            
+            (Ok(result), tx)
+        }).await
+    }
+}
+```
+
+## Implementation Notes
+
+- **Static Repositories**: The `repository!` macro creates a static instance using `LazyLock`, accessible via the uppercase name (e.g., `USER_REPO`).
+- **Zero-sized Type (ZST) Repositories**: By adding `!zst` to the repository macro, you can create repositories with zero runtime cost.
+- **Debugging Filters**: Enable the `filter_debug_impl` feature to automatically implement `Debug` for all generated filters.
+- **Error Logging**: The `log_err` feature adds error logging to all repository operations.
+- **Insert with IDs**: The `insert_duplicate` feature allows inserting records with existing IDs.
+
+## Available Repository Traits
+
+SQLx Utils provides several repository traits that can be implemented for your models:
+
+- **Repository**: Base trait for all repositories
+- **InsertableRepository**: For inserting new records
+- **UpdatableRepository**: For updating existing records
+- **SaveRepository**: For intelligently inserting or updating based on ID presence
+- **DeleteRepository**: For removing records
+- **SelectRepository**: For querying records
+- **FilterRepository**: For querying with type-safe filters
+- **TransactionRepository**: For working with transactions
+
+## Development Status
+
+SQLx Utils is in active development. The API may evolve between minor versions as I refine the interface based on user feedback.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
