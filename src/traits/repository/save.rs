@@ -57,11 +57,11 @@ use std::pin::Pin;
 /// # async fn example(repo: &UserRepository) -> sqlx_utils::Result<()> {
 /// // Create a new user (no ID)
 /// let new_user = User { id: None, name: String::from("Alice") };
-/// repo.save(&new_user).await?; // Will insert
+/// repo.save(new_user).await?; // Will insert
 ///
 /// // Update an existing user (has ID)
 /// let existing_user = User { id: Some(1), name: String::from("Updated Alice") };
-/// repo.save(&existing_user).await?; // Will update
+/// repo.save_ref(&existing_user).await?; // Will update
 ///
 /// // Save a mixed batch of new and existing users
 /// let users = vec![

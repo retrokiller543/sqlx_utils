@@ -117,13 +117,13 @@ where
     ///
     /// # Implementation Example
     ///
-    /// ```rust,no_compile
+    /// ```rust,ignore
     /// fn get_all_query(&self) -> QueryAs<User> {
     ///     sqlx::query_as("SELECT * FROM users")
     /// }
     /// ```
     ///
-    /// ```rust,no_compile
+    /// ```rust,ignore
     /// fn get_all_query(&self) -> QueryAs<User> {
     ///     sqlx::query_as!(User, "SELECT * FROM users")
     /// }
