@@ -40,7 +40,7 @@ pub trait DeleteRepositoryTransaction<M: Model>:
         I: IntoIterator<Item = M::Id> + Send + 'a,
         I::IntoIter: Send + 'a,
     {
-        let filter = InValues::new(column.as_ref(), values);
+        let filter = InValues::new(column, values);
 
         self.delete_by_filter_in_transaction(filter)
     }
