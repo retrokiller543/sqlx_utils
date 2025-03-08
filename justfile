@@ -4,7 +4,7 @@ release:
   cargo build --release    
 
 lint:
-  cargo clippy --all-targets --allow-dirty --allow-staged --workspace --all-features
+  cargo clippy --all-targets --workspace --all-features
 
 lint-fix:
   cargo clippy --fix --all-targets --allow-dirty --allow-staged --workspace --all-features
@@ -23,16 +23,28 @@ example name:
 
 [confirm("Run a dry run of publishing all crates in the workspace to the `gitea` registry? Y/n")]
 publish-gitea-dry: pre-build lint
-  cargo publish --registry gitea --workspace --dry-run
+  cd sqlx-utils-macro
+  cargo publish --registry gitea --dry-run
+  cd ..
+  cargo publish --registry gitea --dry-run
 
 [confirm("Run a dry run of publishing all crates in the workspace? Y/n")]
 publish-dry: pre-build lint
-  cargo publish --workspace --dry-run
+  cd sqlx-utils-macro
+  cargo publish --dry-run
+  cd ..
+  cargo publish --dry-run
 
 [confirm("Are you sure you want to publishing all crates in the workspace to the `gitea` registry? Y/n")]
 publish-gitea: publish-gitea-dry
-  cargo publish --registry gitea --workspace
+  cd sqlx-utils-macro
+  cargo publish --registry gitea
+  cd ..
+  cargo publish --registry gitea
 
 [confirm("Are you sure you want to publishing all crates in the workspace? Y/n")]
 publish: publish-dry
-  cargo publish --workspace
+  cd sqlx-utils-macro
+  cargo publish
+  cd ..
+  cargo publish
