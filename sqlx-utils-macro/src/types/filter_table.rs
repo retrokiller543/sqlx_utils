@@ -3,6 +3,7 @@ use crate::types::filter_sql::FilterSql;
 use crate::types::{crate_name, database_type};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
+use std::collections::HashMap;
 use syn::token::Brace;
 use syn::{parse_quote, Attribute, Token, Visibility};
 use syn_derive::Parse;
@@ -64,7 +65,8 @@ impl ToTokens for FilterTable {
             ..
         } = self;
 
-        let fields = sql.expr.fields();
+        let mut cache = HashMap::new();
+        let fields = sql.expr.fields_with_cache(&mut cache);
         let token_fields = fields.iter().filter_map(|(name, ty, optional)| {
             if let ColumnVal::Type(ty) = ty {
                 if *optional {

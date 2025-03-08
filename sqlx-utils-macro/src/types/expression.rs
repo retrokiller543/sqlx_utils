@@ -4,6 +4,7 @@ use crate::types::condition::Condition;
 use crate::types::crate_name;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote, ToTokens};
+use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{parse_quote, TypePath};
@@ -82,7 +83,16 @@ impl Expression {
         }
     }
 
-    pub(crate) fn fields(&self) -> Vec<(&Ident, &ColumnVal, bool)> {
+    pub(crate) fn fields_with_cache<'a>(
+        &'a self,
+        cache: &mut HashMap<usize, Vec<(&'a Ident, &'a ColumnVal, bool)>>,
+    ) -> Vec<(&'a Ident, &'a ColumnVal, bool)> {
+        let self_ptr = self as *const Self as usize;
+
+        if let Some(cached) = cache.get(&self_ptr) {
+            return cached.clone();
+        }
+
         let mut fields = Vec::new();
 
         match self {
@@ -92,16 +102,18 @@ impl Expression {
                 condition.optional,
             )),
             Expression::And(left, right) => {
-                fields.extend(left.fields());
-                fields.extend(right.fields());
+                fields.extend(left.fields_with_cache(cache));
+                fields.extend(right.fields_with_cache(cache));
             }
             Expression::Or(left, right) => {
-                fields.extend(left.fields());
-                fields.extend(right.fields());
+                fields.extend(left.fields_with_cache(cache));
+                fields.extend(right.fields_with_cache(cache));
             }
-            Expression::Not(expr) => fields.extend(expr.fields()),
-            Expression::Group(expr) => fields.extend(expr.fields()),
+            Expression::Not(expr) => fields.extend(expr.fields_with_cache(cache)),
+            Expression::Group(expr) => fields.extend(expr.fields_with_cache(cache)),
         }
+
+        cache.insert(self_ptr, fields.clone());
 
         fields
     }
