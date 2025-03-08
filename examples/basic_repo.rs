@@ -7,7 +7,7 @@ use std::sync::{Arc, LazyLock};
 use std::time::Duration;
 
 pub static DATABASE_URL: LazyLock<String> =
-    LazyLock::new(|| std::env::var("DATABASE_URL").expect("failed to get env var"));
+    LazyLock::new(|| std::env::var("DATABASE_URL").expect("failed to get DATABASE_URL"));
 
 sql_filter! {
     pub struct UserFilter {
