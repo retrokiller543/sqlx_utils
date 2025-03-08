@@ -2,7 +2,7 @@
 members = ["sqlx-utils-macro"]
 
 [workspace.package]
-version = "1.1.0-1"
+version = "1.1.0"
 description = "Utilities for working with SQLx in a structured and efficient way, both when developing and running"
 repository = "https://github.com/retrokiller543/sqlx_utils"
 authors = ["Emil Schütt <emil.schutt@gmail.com>"]
@@ -12,7 +12,7 @@ edition = "2021"
 
 [package]
 name = "sqlx-utils"
-version = "1.1.0-5"
+version = "1.1.0"
 edition.workspace = true
 description.workspace = true
 repository.workspace = true
@@ -23,7 +23,7 @@ license.workspace = true
 [dependencies]
 paste = "1.0.15"
 sqlx = "0.8.3"
-sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.1.0-1", default-features = false, registry = "gitea" }
+sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.1.0", default-features = false, registry = "gitea" }
 thiserror = "2.0.12"
 tokio = { version = "1.43.0", features = ["full"] }
 futures = "0.3.31"
