@@ -562,7 +562,7 @@ macro_rules! filter_repository_ext {
 ///
 /// 1. Required method: [`filter_query_builder`](FilterRepository::filter_query_builder) - Creates a query builder for filter-based queries
 /// 2. Query is built using [`prepare_filter_query`](FilterRepository::prepare_filter_query) and if anything is needed after the `WHERE` clause you need to override the
-///    [`post_filter_query_builder`](FilterRepository::post_filter_query_builder) this allows you to modify query or even scrap it and construct a new one.
+///    [`post_filter_query`](FilterRepository::post_filter_query) this allows you to modify query or even scrap it and construct a new one.
 /// 3. All methods are instrumented with tracing for debugging and monitoring
 /// 4. Feature flags control the debug implementation and error logging behavior:
 ///    - `filter_debug_impl` - Adds a `Debug` bound to filter types

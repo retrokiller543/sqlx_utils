@@ -1,5 +1,7 @@
-use crate::prelude::SaveRepository;
+//! Transaction related traits.
+
 use crate::{
+    mod_def,
     traits::{Model, Repository},
     types::Database,
 };
@@ -7,6 +9,10 @@ use futures::future::try_join_all;
 use sqlx::{Error, Transaction};
 use std::future::Future;
 use std::sync::Arc;
+
+mod_def! {
+    pub mod save_transaction;
+}
 
 /// Extension trait for Repository to work with transactions
 ///
@@ -32,7 +38,7 @@ where
     ///
     /// # Type Parameters
     ///
-    /// * `F`: The type of the callback function
+    /// * `F`: The type of the callback function [^func]
     /// * `Fut`: The future type returned by the callback
     /// * `R`: The result type
     /// * `E`: The error type, which must be convertible from [`Error`]
@@ -54,6 +60,9 @@ where
     ///     (res, tx)
     /// }).await;
     /// ```
+    ///
+    /// [^func]: The function signature of an action must be `async fn action<'b>(tx: Transaction<'b, Database>) -> (Result<T, E>, Transaction<'b, Database>)`
+    ///    Take note of the lifetimes as you might run into errors related to lifetimes if they are not specified due to invariance. The future must also be [`Send`]
     fn with_transaction<'a, 'b, F, Fut, R, E>(
         &'a self,
         callback: F,
@@ -90,7 +99,7 @@ where
     /// # Type Parameters
     ///
     /// * `I`: The iterator type
-    /// * `F`: The action function type
+    /// * `F`: The action function type [^func]
     /// * `Fut`: The future type returned by each action
     /// * `R`: The result type
     /// * `E`: The error type, which must be convertible from [`Error`]
@@ -112,7 +121,12 @@ where
     /// 3. If any action fails, rolls back the transaction and returns the error
     /// 4. If all actions succeed, commits the transaction and returns the results
     ///
-    /// # Example
+    /// Due to complex lifetime bounds in underlying types we must take ownership and then return it
+    /// back.
+    ///
+    /// # Examples
+    ///
+    /// ## Basic
     ///
     /// ```no_compile
     /// let results = repo.transaction_sequential([
@@ -120,6 +134,56 @@ where
     ///     |tx| async move { repo.save_with_executor(tx, model2).await }
     /// ]).await;
     /// ```
+    ///
+    /// ## Complete
+    ///
+    /// ```rust,should_panic
+    /// use sqlx::Transaction;
+    /// use sqlx_utils::prelude::*;
+    /// #
+    /// # repository! {
+    /// #     !zst
+    /// #     UserRepo<User>;
+    /// # }
+    ///
+    /// struct User {
+    ///     id: String,
+    ///     name: String
+    /// }
+    ///
+    /// impl Model for User {
+    ///     type Id = String;
+    ///
+    ///     fn get_id(&self) -> Option<Self::Id> {
+    ///         Some(self.id.to_owned())
+    ///     }
+    /// }
+    ///
+    /// #[derive(Debug)]
+    /// struct Error { // Any error type that implements `From<sqlx::Error>` is allowed
+    ///     kind: Box<dyn std::error::Error + Send>
+    /// }
+    ///
+    /// impl From<sqlx::Error> for Error {
+    ///     fn from(value: sqlx::Error) -> Self {
+    ///         Self {
+    ///             kind: Box::new(value)
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// async fn action<'b>(tx: Transaction<'b, Database>) -> (Result<User, Error>, Transaction<'b, Database>) {
+    ///      unimplemented!()
+    ///  }
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// USER_REPO.transaction_sequential([action, action, action]).await.unwrap();
+    /// # }
+    /// ```
+    ///
+    /// [^func]: The function signature of an action must be `async fn action<'b>(tx: Transaction<'b, Database>) -> (Result<T, E>, Transaction<'b, Database>)`
+    ///    Take note of the lifetimes as you might run into errors related to lifetimes if they are not specified due to invariance. The future must also be [`Send`]
     fn transaction_sequential<'a, 'b, I, F, Fut, R, E>(
         &'a self,
         actions: I,
@@ -163,14 +227,14 @@ where
     /// # Type Parameters
     ///
     /// * `I`: The iterator type
-    /// * `F`: The action function type
+    /// * `F`: The action function type [^func] [^mutex]
     /// * `Fut`: The future type returned by each action
     /// * `R`: The result type
     /// * `E`: The error type, which must be convertible from [`Error`]
     ///
     /// # Parameters
     ///
-    /// * `action_fns`: An iterator of functions that will be executed concurrently in the transaction
+    /// * `actions`: An iterator of functions that will be executed concurrently in the transaction
     ///
     /// # Returns
     ///
@@ -181,7 +245,7 @@ where
     /// # Implementation Details
     ///
     /// 1. Begins a transaction from the repository's connection pool
-    /// 2. Wraps the transaction in an [`Arc<Mutex<_>>`] to safely share it between concurrent operations
+    /// 2. Wraps the transaction in an [`Arc<Mutex<_>>`] to safely share it between concurrent operations [^mutex]
     /// 3. Creates futures for all actions but doesn't execute them yet
     /// 4. Executes all futures concurrently using [`try_join_all`]
     /// 5. If all operations succeed, commits the transaction and returns the results
@@ -193,6 +257,8 @@ where
     /// - Requires the transaction to be safely shared between multiple futures
     ///
     /// # Example
+    ///
+    /// ## Basic
     ///
     /// ```no_compile
     /// let results = repo.transaction_concurrent([
@@ -206,9 +272,64 @@ where
     ///     }
     /// ]).await;
     /// ```
+    ///
+    /// ## Complete
+    ///
+    /// ```rust,should_panic
+    /// use sqlx::Transaction;
+    /// use std::sync::Arc;
+    /// use sqlx_utils::prelude::*;
+    /// #
+    /// # repository! {
+    /// #     !zst
+    /// #     UserRepo<User>;
+    /// # }
+    ///
+    /// struct User {
+    ///     id: String,
+    ///     name: String
+    /// }
+    ///
+    /// impl Model for User {
+    ///     type Id = String;
+    ///
+    ///     fn get_id(&self) -> Option<Self::Id> {
+    ///         Some(self.id.to_owned())
+    ///     }
+    /// }
+    ///
+    /// #[derive(Debug)]
+    /// struct Error { // Any error type that implements `From<sqlx::Error>` is allowed
+    ///     kind: Box<dyn std::error::Error + Send>
+    /// }
+    ///
+    /// impl From<sqlx::Error> for Error {
+    ///     fn from(value: sqlx::Error) -> Self {
+    ///         Self {
+    ///             kind: Box::new(value)
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// async fn action<'b>(tx: Arc<parking_lot::Mutex<Transaction<'b, Database>>>) -> Result<User, Error> {
+    ///     unimplemented!()
+    ///  }
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// USER_REPO.transaction_concurrent([action, action, action]).await.unwrap();
+    /// # }
+    /// ```
+    ///
+    /// [^func]: The function signature of an action must be `async fn action<'b>(tx: Arc<parking_lot::Mutex<Transaction<'b, Database>>>) -> Result<T, E>`
+    ///    Take note of the lifetimes as you might run into errors related to lifetimes if they are not specified due to invariance. The future must also be [`Send`]
+    ///
+    /// [^mutex]: It is up to you to ensure we don't get deadlocks, the function itself will not lock the mutex,
+    ///    it will however attempt to get the inner value of the [`Arc`] after all actions has completed where it also consumes the mutex.
+    ///    This makes it in theory impossible to get a deadlock in this method, however deadlocks can occur between different actions.
     fn transaction_concurrent<'a, 'b, I, F, Fut, R, E>(
         &'a self,
-        action_fns: I,
+        actions: I,
     ) -> impl Future<Output = Result<Vec<R>, E>> + Send + 'a
     where
         I: IntoIterator<Item = F> + Send + 'a,
@@ -223,7 +344,7 @@ where
             let tx = Arc::new(parking_lot::Mutex::new(tx));
 
             // Create futures but don't await them yet
-            let futures: Vec<_> = action_fns
+            let futures: Vec<_> = actions
                 .into_iter()
                 .map(|action_fn| action_fn(tx.clone()))
                 .collect();
@@ -262,7 +383,7 @@ where
     /// # Type Parameters
     ///
     /// * `I`: The iterator type
-    /// * `F`: The action function type
+    /// * `F`: The action function type [^func]
     /// * `Fut`: The future type returned by each action
     /// * `R`: The result type
     /// * `E`: The error type, which must be convertible from [`Error`]
@@ -286,6 +407,8 @@ where
     ///
     /// # Example
     ///
+    /// ## Basic
+    ///
     /// ```no_compile
     /// match repo.try_transaction([
     ///     |tx| async move { repo.save_with_executor(tx, model1).await },
@@ -295,15 +418,65 @@ where
     ///     Err(errors) => println!("Some operations failed: {:?}", errors)
     /// }
     /// ```
-    fn try_transaction<'a, I, F, Fut, R, E>(
+    ///
+    /// ## Complete
+    ///
+    /// ```rust,should_panic
+    /// use sqlx::Transaction;
+    /// use sqlx_utils::prelude::*;
+    /// #
+    /// # repository! {
+    /// #     !zst
+    /// #     UserRepo<User>;
+    /// # }
+    ///
+    /// struct User {
+    ///     id: String,
+    ///     name: String
+    /// }
+    ///
+    /// impl Model for User {
+    ///     type Id = String;
+    ///
+    ///     fn get_id(&self) -> Option<Self::Id> {
+    ///         Some(self.id.to_owned())
+    ///     }
+    /// }
+    ///
+    /// #[derive(Debug)]
+    /// struct Error { // Any error type that implements `From<sqlx::Error>` is allowed
+    ///     kind: Box<dyn std::error::Error + Send>
+    /// }
+    ///
+    /// impl From<sqlx::Error> for Error {
+    ///     fn from(value: sqlx::Error) -> Self {
+    ///         Self {
+    ///             kind: Box::new(value)
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// async fn action<'b>(tx: Transaction<'b, Database>) -> (Result<User, Error>, Transaction<'b, Database>) {
+    ///      unimplemented!()
+    ///  }
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    /// USER_REPO.try_transaction([action, action, action]).await.unwrap();
+    /// # }
+    /// ```
+    ///
+    /// [^func]: The function signature of an action must be `async fn action<'b>(tx: Transaction<'b, Database>) -> (Result<T, E>, Transaction<'b, Database>)`
+    ///    Take note of the lifetimes as you might run into errors related to lifetimes if they are not specified due to invariance. The future must also be [`Send`]
+    fn try_transaction<'a, 'b, I, F, Fut, R, E>(
         &'a self,
         actions: I,
     ) -> impl Future<Output = Result<Vec<R>, Vec<E>>> + Send + 'a
     where
         I: IntoIterator<Item = F> + Send + 'a,
         I::IntoIter: Send + 'a,
-        F: FnOnce(&mut Transaction<'_, Database>) -> Fut + Send + 'a,
-        Fut: Future<Output = Result<R, E>> + Send,
+        F: FnOnce(Transaction<'b, Database>) -> Fut + Send + 'a,
+        Fut: Future<Output = (Result<R, E>, Transaction<'b, Database>)> + Send,
         R: Send + 'a,
         E: From<Error> + Send + 'a,
     {
@@ -313,7 +486,10 @@ where
             let mut errors = Vec::new();
 
             for action in actions {
-                match action(&mut tx).await {
+                let (result, new_tx) = action(tx).await;
+                tx = new_tx;
+
+                match result {
                     Ok(result) => results.push(result),
                     Err(e) => errors.push(e),
                 }
@@ -334,59 +510,5 @@ impl<T, M> TransactionRepository<M> for T
 where
     T: Repository<M>,
     M: Model,
-{
-}
-
-/// Extension trait for Save operations with transactions.
-///
-/// This trait provides convenience methods for using transactions with repositories
-/// that implement [`SaveRepository`]. It's automatically implemented for any type that
-/// implements both [`SaveRepository<M>`] and [`TransactionRepository<M>`].
-pub trait SaveRepositoryTransactionExt<M>: SaveRepository<M> + TransactionRepository<M>
-where
-    M: Model + Send + Sync,
-{
-    /// Saves a model in a transaction, ensuring atomicity.
-    ///
-    /// This method:
-    /// 1. Creates a transaction using [`with_transaction`](TransactionRepository)
-    /// 2. Calls [`save_with_executor`](SaveRepository::save_with_executor) with the transaction
-    /// 3. Returns the model on successful save
-    ///
-    /// # Parameters
-    ///
-    /// * `model`: The model to save
-    ///
-    /// # Returns
-    ///
-    /// A future that resolves to:
-    /// * `Ok(M)`: The saved model on success
-    /// * `Err(crate::Error)`: The error if saving failed
-    ///
-    /// # Example
-    ///
-    /// ```no_compile
-    /// let saved_model = repo.save_in_transaction(model).await?;
-    /// ```
-    fn save_in_transaction<'a>(
-        &'a self,
-        model: M,
-    ) -> impl Future<Output = Result<M, crate::Error>> + Send + 'a
-    where
-        M: 'a,
-    {
-        self.with_transaction(move |mut tx| async move {
-            let res = self.save_with_executor(&mut *tx, model).await;
-
-            (res, tx)
-        })
-    }
-}
-
-// Blanket implementation for any repository that implements both required traits
-impl<T, M> SaveRepositoryTransactionExt<M> for T
-where
-    T: SaveRepository<M> + TransactionRepository<M>,
-    M: Model + Send + Sync,
 {
 }

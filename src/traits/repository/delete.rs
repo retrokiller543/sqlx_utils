@@ -119,7 +119,7 @@ pub trait DeleteRepository<M: Model>: Repository<M> {
     ///
     /// # Returns
     ///
-    /// * [`Query`] - A prepared PostgreSQL DELETE query
+    /// * [`Query`] - A prepared SQL DELETE query
     ///
     /// # Implementation Notes
     ///

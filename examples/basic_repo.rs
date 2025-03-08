@@ -151,6 +151,25 @@ impl UserRepo {
         .await
         .map_err(Into::into)
     }
+
+    pub async fn try_save_with_tx<'a, 'b>(
+        &'a self,
+        model: User,
+    ) -> Result<Vec<User>, Vec<DbError>> {
+        self.try_transaction::<'a, 'b>([move |mut tx: Transaction<'b, Database>| async move {
+            let res = self.save_with_executor(&mut *tx, model).await;
+
+            (res, tx)
+        }])
+        .await
+        .map_err(|errors| errors.into_iter().map(Into::into).collect())
+    }
+}
+
+async fn action<'b>(
+    _: Transaction<'b, Database>,
+) -> (Result<User, DbError>, Transaction<'b, Database>) {
+    unimplemented!()
 }
 
 #[tokio::main]
@@ -180,4 +199,6 @@ async fn main() {
         .save_with_context(user.clone(), UserContext::System)
         .await
         .unwrap();
+
+    USER_REPO.with_transaction(action).await.unwrap();
 }

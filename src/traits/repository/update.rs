@@ -116,7 +116,7 @@ pub trait UpdatableRepository<M: Model>: Repository<M> {
     ///
     /// # Returns
     ///
-    /// * [`Query`] - A prepared PostgreSQL UPDATE query
+    /// * [`Query`] - A prepared SQL UPDATE query
     ///
     /// # Implementation Notes
     ///

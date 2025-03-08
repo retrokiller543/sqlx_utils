@@ -6,6 +6,8 @@ mod repository;
 ///
 /// If a database model is provided it will also try to implement the [`crate::traits::Repository`] trait.
 ///
+/// For non ZST repositories it will implement `Deref`, `Borrow`, and `AsRef` to get the inner pool.
+///
 /// # Examples
 ///
 /// ```
@@ -72,7 +74,28 @@ macro_rules! repository {
         $(#[$meta])*
         #[derive(Clone, Copy, Debug)]
         $vis struct $ident {
+            /// Static Reference to the global database pool [`DB_POOL`](::sqlx_utils::pool::DB_POOL)
             pool: &'static $crate::types::Pool,
+        }
+
+        impl ::core::ops::Deref for $ident {
+            type Target = $crate::types::Pool;
+
+            fn deref(&self) -> &Self::Target {
+                &self.pool
+            }
+        }
+
+        impl ::core::borrow::Borrow<$crate::types::Pool> for $ident {
+            fn borrow(&self) -> &$crate::types::Pool {
+                &self.pool
+            }
+        }
+
+        impl ::core::convert::AsRef<$crate::types::Pool> for $ident {
+            fn as_ref(&self) -> &$crate::types::Pool {
+                &self.pool
+            }
         }
 
         $crate::static_repo!($vis $ident;);
@@ -106,7 +129,7 @@ macro_rules! repository {
 
         $($tokens:tt)*
     } => {
-        $crate::repository!(!inner $(#[$meta])* $vis $ident; $($tokens)*);
+        $crate::repository!(!inner $(#[$meta])* $vis $ident<$model>; $($tokens)*);
     };
 
     {
@@ -166,7 +189,7 @@ macro_rules! repository {
 
         $($tokens:tt)*
     } => {
-        $crate::repository!(!zst !inner $(#[$meta])* $vis $ident; $($tokens)*);
+        $crate::repository!(!zst !inner $(#[$meta])* $vis $ident<$model>; $($tokens)*);
     };
 
     {
