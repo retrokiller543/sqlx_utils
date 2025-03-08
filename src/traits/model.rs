@@ -6,8 +6,8 @@ use std::hash::Hash;
 /// Trait for defining unique identification methods for database models.
 ///
 /// The `Model` trait provides a standardized way to handle identification of database
-/// models, with built-in support for collections and wrapper types like `Vec`, `Option`,
-/// and `Result`.
+/// models, with built-in support for collections and wrapper types like [`Vec`], [`Option`],
+/// and [`Result`].
 ///
 /// # Type Parameters
 ///
@@ -89,9 +89,14 @@ use std::hash::Hash;
 ///
 /// All implementations use `#[inline]` for optimal performance in tight loops
 /// or when working with large collections of models.
-pub trait Model {
+#[diagnostic::on_unimplemented(
+    note = "Type `{Self}` does not implement the `Model` trait which is required for database operations",
+    label = "this type does not implement `Model`",
+    message = "`{Self}` must implement `Model` to define how to identify database records"
+)]
+pub trait Model: Send + Sync {
     /// The type used for model identification
-    type Id;
+    type Id: Send;
 
     /// Returns the model's identifier if available
     ///
@@ -100,11 +105,15 @@ pub trait Model {
     /// * [`Some(Id)`](Some) - If the model has an identifier
     /// * [`None`] - If the model has no identifier
     fn get_id(&self) -> Option<Self::Id>;
+
+    fn has_id(&self) -> bool {
+        self.get_id().is_some()
+    }
 }
 
 impl<M> Model for Vec<M>
 where
-    M: Model,
+    M: Model + Send + Sync,
 {
     type Id = Vec<Option<M::Id>>;
 
@@ -122,7 +131,7 @@ where
 
 impl<M> Model for Option<M>
 where
-    M: Model,
+    M: Model + Send + Sync,
 {
     type Id = M::Id;
 
@@ -138,7 +147,8 @@ where
 
 impl<M, E> Model for Result<M, E>
 where
-    M: Model,
+    M: Model + Send + Sync,
+    E: Send + Sync,
 {
     type Id = M::Id;
 
@@ -154,8 +164,8 @@ where
 
 impl<K, V> Model for HashMap<K, V>
 where
-    K: Eq + Hash + Clone,
-    V: Model,
+    K: Eq + Hash + Clone + Send + Sync,
+    V: Model + Send + Sync,
 {
     type Id = HashMap<K, Option<V::Id>>;
 
@@ -167,8 +177,8 @@ where
 
 impl<K, V> Model for BTreeMap<K, V>
 where
-    K: Ord + Clone,
-    V: Model,
+    K: Ord + Clone + Send + Sync,
+    V: Model + Send + Sync,
 {
     type Id = BTreeMap<K, Option<V::Id>>;
 

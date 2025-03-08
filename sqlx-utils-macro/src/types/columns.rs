@@ -3,7 +3,25 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{LitStr, Token, Type};
 
-/// Parses either `*` or `a, b, c as c_example`
+/// Represents column selection in an SQL query.
+///
+/// This enum handles both the `SELECT *` case and the case where
+/// specific columns are selected, potentially with aliases.
+///
+/// # Variants
+///
+/// - `All`: Represents `SELECT *`
+/// - `Defined`: Represents `SELECT col1, col2 as alias2, ...`
+///
+/// # Parsing
+///
+/// Parses input in either format:
+/// - `*`: All columns
+/// - `col1, col2 as alias2, ...`: Specific columns with optional aliases
+///
+/// # Code Generation
+///
+/// Expands to SQL column selectors in the generated query.
 pub(crate) enum Columns {
     All,
     Defined(Vec<(String, String)>),
@@ -56,8 +74,26 @@ impl Parse for Columns {
     }
 }
 
+/// Represents a value type in a condition.
+///
+/// This enum handles both Rust types and raw SQL expressions.
+///
+/// # Variants
+///
+/// - `Type`: A Rust type like `i32` or `String`
+/// - `Raw`: A raw SQL string literal for direct inclusion in the query
+///
+/// # Parsing
+///
+/// - `Type`: Parses any valid Rust type
+/// - `Raw`: Parses a string literal enclosed in quotes
+///
+/// # Usage in Filters
+///
+/// Used to specify the expected type of a filter field or to include
+/// raw SQL expressions directly in the query.
 pub(crate) enum ColumnVal {
-    Type(Type),
+    Type(Box<Type>),
     Raw(LitStr),
 }
 

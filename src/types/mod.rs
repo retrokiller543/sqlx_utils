@@ -1,9 +1,9 @@
 use crate::mod_def;
 
-mod_def! {
-    pub mod query;
-    pub mod pool;
-    pub mod db;
+mod_def! {!export
+    pub(crate) mod query;
+    pub(crate) mod pool;
+    pub(crate) mod db;
 }
 
 macro_rules! db_type {

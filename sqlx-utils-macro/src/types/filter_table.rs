@@ -4,9 +4,38 @@ use crate::types::{crate_name, database_type};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{quote, ToTokens};
 use syn::token::Brace;
-use syn::{Attribute, Token, Visibility};
+use syn::{parse_quote, Attribute, Token, Visibility};
 use syn_derive::Parse;
 
+/// Top-level structure representing a SQL filter definition.
+///
+/// This struct is the main entry point for parsing the `sql_filter!` macro input.
+/// It contains metadata about the generated struct (attributes, visibility, name)
+/// and the SQL filter definition.
+///
+/// # Parsing
+///
+/// Parses input in the format:
+/// ```ignore
+/// #[derive(Debug)] // optional attributes
+/// pub struct FilterName { // visibility and struct name
+///     SELECT * FROM table WHERE // SQL filter definition
+///     column = Type AND ...
+/// }
+/// ```
+///
+/// # Code Generation
+///
+/// Expands to:
+/// 1. A struct with fields for each condition in the filter
+/// 2. A constructor method with required fields as parameters
+/// 3. Builder methods for optional fields (those prefixed with `?`)
+/// 4. Implementation of the `SqlFilter` trait
+///
+/// The generated struct implements the `SqlFilter` trait with:
+/// - `apply_filter`: Applies the filter conditions to a query builder
+/// - `should_apply_filter`: Determines if the filter should be applied (true if
+///   all required fields are present and at least one optional field is present)
 #[derive(Parse)]
 #[allow(dead_code)]
 pub(crate) struct FilterTable {
@@ -50,9 +79,7 @@ impl ToTokens for FilterTable {
 
         let fields = fields
             .iter()
-            .filter(|(_, ty, _)| {
-                matches!(ty, ColumnVal::Type(_))
-            })
+            .filter(|(_, ty, _)| matches!(ty, ColumnVal::Type(_)))
             .collect::<Vec<_>>();
 
         let optional_fields = fields
@@ -110,6 +137,18 @@ impl ToTokens for FilterTable {
             }
         };
 
+        #[cfg(feature = "filter_debug_impl")]
+        let mut new_meta = Vec::with_capacity(meta.len());
+        #[cfg(feature = "filter_debug_impl")]
+        new_meta.extend(meta);
+        #[cfg(feature = "filter_debug_impl")]
+        let mut meta = new_meta;
+
+        #[cfg(feature = "filter_debug_impl")]
+        let debug_meta = parse_quote! {#[derive(Debug)]};
+        #[cfg(feature = "filter_debug_impl")]
+        meta.push(&debug_meta);
+
         let struct_def = quote! {
             #(#meta)*
             #vis struct #name {
@@ -144,7 +183,11 @@ impl ToTokens for FilterTable {
         let db_type = database_type();
 
         let should_apply_filter_impl = if !optional_fields.is_empty() {
-            let mut impl_tokens = Vec::new();
+            let mut impl_tokens = vec![];
+
+            if !req_fields.is_empty() {
+                impl_tokens.push(quote! {true});
+            }
 
             for (ident, _, _) in optional_fields {
                 impl_tokens.push(quote! {self.#ident.is_some()})

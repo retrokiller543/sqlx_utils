@@ -2,7 +2,7 @@
 members = ["sqlx-utils-macro"]
 
 [workspace.package]
-version = "1.0.0-2"
+version = "1.1.0"
 description = "Utilities for working with SQLx in a structured and efficient way, both when developing and running"
 repository = "https://github.com/retrokiller543/sqlx_utils"
 authors = ["Emil Schütt <emil.schutt@gmail.com>"]
@@ -12,7 +12,7 @@ edition = "2021"
 
 [package]
 name = "sqlx-utils"
-version = "1.0.0-2"
+version = "1.1.0"
 edition.workspace = true
 description.workspace = true
 repository.workspace = true
@@ -23,15 +23,21 @@ license.workspace = true
 [dependencies]
 paste = "1.0.15"
 sqlx = "0.8.3"
-sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.0.0-2", registry = "gitea" }
-thiserror = "2.0.11"
+sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.1.0", default-features = false }
+thiserror = "2.0.12"
 tokio = { version = "1.43.0", features = ["full"] }
 futures = "0.3.31"
 tracing = "0.1.41"
+cfg-if = "1.0.0"
+async-trait = "0.1.87"
+parking_lot = { version = "0.12.3", features = ["send_guard", "arc_lock"] }
 
 [features]
-default = ["any"]
+default = ["any", "filter_debug_impl"]
 sqlite = ["sqlx-utils-macro/sqlite", "sqlx/sqlite"]
 any = ["sqlx-utils-macro/any", "sqlx/any"]
 postgres = ["sqlx-utils-macro/postgres", "sqlx/postgres"]
 mysql = ["sqlx-utils-macro/mysql", "sqlx/mysql"]
+filter_debug_impl = ["sqlx-utils-macro/filter_debug_impl"]
+log_err = []
+insert_duplicate = []

@@ -4,10 +4,10 @@ use std::future::Future;
 use std::ops::{Deref, DerefMut};
 use tracing::instrument;
 
-pub(crate) const DEFAULT_BATCH_SIZE: usize = 256;
+pub const DEFAULT_BATCH_SIZE: usize = 256;
 
 #[derive(Debug)]
-pub(crate) struct BatchOperator<T, const N: usize = DEFAULT_BATCH_SIZE>(Vec<T>);
+pub struct BatchOperator<T, const N: usize = DEFAULT_BATCH_SIZE>(Vec<T>);
 
 impl<T, const N: usize> Deref for BatchOperator<T, N> {
     type Target = Vec<T>;

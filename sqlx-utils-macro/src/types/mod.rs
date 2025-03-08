@@ -9,22 +9,16 @@ pub(crate) mod filter_sql;
 pub(crate) mod filter_table;
 pub(crate) mod sql_operator;
 
+/// Gets the crate name as an [`Ident`].
 #[inline]
 fn crate_name() -> Ident {
     Ident::new(CRATE_NAME_STR, Span::call_site())
 }
 
+/// Gets the abstract database type to use.
 #[inline]
 fn database_type() -> TokenStream {
-    if cfg!(feature = "sqlite") {
-        quote! {::sqlx::Sqlite}
-    } else if cfg!(feature = "mysql") {
-        quote! {::sqlx::MySql}
-    } else if cfg!(feature = "postgres") {
-        quote! {::sqlx::Postgres}
-    } else {
-        quote! {::sqlx::Any}
-    }
+    quote! { ::sqlx_utils::prelude::Database }
 }
 
 /*impl SqlOperator {

@@ -7,7 +7,6 @@ use sqlx::QueryBuilder;
 pub struct Raw(pub &'static str);
 
 impl<'args> SqlFilter<'args> for Raw {
-
     #[inline]
     #[cfg(feature = "any")]
     fn apply_filter(self, builder: &mut QueryBuilder<'args, sqlx::Any>) {
