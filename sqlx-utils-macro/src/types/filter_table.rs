@@ -42,7 +42,8 @@ use super::columns::Columns;
 /// - `apply_filter`: Applies the filter conditions to a query builder
 /// - `should_apply_filter`: Determines if the filter should be applied (true if
 ///   all required fields are present and at least one optional field is present)
-#[derive(Parse, Debug)]
+#[derive(Parse)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 #[allow(dead_code)]
 pub(crate) struct FilterTable {
     #[parse(Attribute::parse_outer)]
@@ -61,8 +62,9 @@ pub(crate) struct FilterTable {
     pub(crate) sql: FilterSql,
 }
 
-#[derive(Parse, Debug)]
+#[derive(Parse)]
 #[allow(dead_code)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) struct RepositoryIdent {
     lt_token: Token![<],
     pub(crate) repo_type: Type,

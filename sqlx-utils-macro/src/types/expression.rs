@@ -39,7 +39,7 @@ use syn::{TypePath, parse_quote};
 /// - `AND`: `.and()`
 /// - `OR`: `.or()`
 /// - `NOT`: `.not()`
-#[derive(Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) enum Expression {
     And(Box<Expression>, Box<Expression>),
     Or(Box<Expression>, Box<Expression>),

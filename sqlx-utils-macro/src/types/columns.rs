@@ -26,7 +26,7 @@ use syn::{LitStr, Token, Type};
 /// # Code Generation
 ///
 /// Expands to SQL column selectors in the generated query.
-#[derive(Debug)]
+#[cfg_attr(debug_assertions, derive(Debug))]
 pub(crate) enum Columns {
     All,
     Defined(Vec<(String, String)>),
@@ -97,7 +97,7 @@ impl Parse for Columns {
 ///
 /// Used to specify the expected type of a filter field or to include
 /// raw SQL expressions directly in the query.
-#[derive(Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) enum ColumnVal {
     Type(Box<Type>),
     Raw(LitStr),

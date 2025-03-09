@@ -40,7 +40,7 @@ use syn::parse::{Parse, ParseStream};
 /// - A parameter in the constructor (for required fields)
 /// - A builder method (for optional fields)
 /// - Part of the `apply_filter` implementation
-#[derive(Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) struct Condition {
     pub(crate) column_name: Ident,
     pub(crate) field_alias: Option<Ident>,

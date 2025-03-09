@@ -41,7 +41,8 @@ use syn::parse::{Parse, ParseStream};
 /// - `ILIKE` → `i_like`
 /// - `IN` → `in_values`
 /// - `NOT IN` → `not_in_values`
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) enum SqlOperator {
     Equals,
     NotEquals,

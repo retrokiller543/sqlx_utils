@@ -28,5 +28,6 @@ mysql = []
 nightly = ["proc-macro-error2/nightly"]
 try-parse = []
 filter-blanket-impl = []
+debug = ["syn/extra-traits"]
 
 filter_debug_impl = []

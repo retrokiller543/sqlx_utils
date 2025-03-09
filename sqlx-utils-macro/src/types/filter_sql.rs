@@ -30,7 +30,7 @@ use syn::parse::{Parse, ParseStream};
 /// - `table_name`: The name of the database table
 /// - `expr`: The parsed filter expression
 #[allow(dead_code)]
-#[derive(Debug)]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) struct FilterSql {
     pub(crate) columns: Columns,
     pub(crate) table_name: Ident,
