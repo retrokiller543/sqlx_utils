@@ -1,8 +1,8 @@
 use crate::types::columns::Columns;
 use crate::types::expression::Expression;
+use proc_macro_error2::abort;
 #[cfg(feature = "try-parse")]
 use proc_macro_error2::emit_error;
-use proc_macro_error2::abort;
 use proc_macro2::Ident;
 use syn::Error;
 use syn::parse::{Parse, ParseStream};
@@ -42,7 +42,10 @@ impl Parse for FilterSql {
         let select = match input.parse::<Ident>() {
             Ok(ident) => ident,
             Err(e) => {
-                abort!(e.span(), "Expected SQL query to start with `SELECT` Identifier");
+                abort!(
+                    e.span(),
+                    "Expected SQL query to start with `SELECT` Identifier"
+                );
             }
         };
 
@@ -98,7 +101,7 @@ impl Parse for FilterSql {
                 table_name, "The keyword `WHERE` is reserved and cant be used as a table name";
                 help = "Any identifier is allowed in this location except for `WHERE`";
             );
-            
+
             #[cfg(feature = "try-parse")]
             {
                 emit_error!(
@@ -114,9 +117,7 @@ impl Parse for FilterSql {
                 let span = err.span();
 
                 #[cfg(not(feature = "try-parse"))]
-                proc_macro_error2::abort!(
-                    span, "Failed to parse `WHERE`"
-                );
+                proc_macro_error2::abort!(span, "Failed to parse `WHERE`");
                 #[cfg(feature = "try-parse")]
                 emit_error!(span, "Failed to parse `WHERE`");
                 #[cfg(feature = "try-parse")]
@@ -128,7 +129,9 @@ impl Parse for FilterSql {
             if where_str.to_uppercase().as_str() != "WHERE" {
                 #[cfg(not(feature = "try-parse"))]
                 proc_macro_error2::abort!(
-                    where_ident, "Expected `WHERE` but instead found `{}`", where_str
+                    where_ident,
+                    "Expected `WHERE` but instead found `{}`",
+                    where_str
                 );
 
                 #[cfg(feature = "try-parse")]

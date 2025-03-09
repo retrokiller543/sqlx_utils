@@ -3,9 +3,9 @@ use proc_macro_error2::emit_error;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{LitStr, Token, Type};
 #[cfg(feature = "try-parse")]
 use syn::parse_quote_spanned;
+use syn::{LitStr, Token, Type};
 
 /// Represents column selection in an SQL query.
 ///

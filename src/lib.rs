@@ -5,11 +5,11 @@ pub mod filter;
 mod macros;
 pub mod pool;
 pub mod prelude;
+pub mod sqlx;
 mod test;
 pub mod traits;
 pub mod types;
 pub mod utils;
-pub mod sqlx;
 
 pub use error::{Error, Result};
 pub use sqlx_utils_macro::sql_filter;

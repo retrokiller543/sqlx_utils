@@ -63,7 +63,9 @@ impl Expression {
 
                 #[cfg(not(feature = "try-parse"))]
                 proc_macro_error2::abort!(
-                    e.span(), "Failed to parse inner expression: {}", message
+                    e.span(),
+                    "Failed to parse inner expression: {}",
+                    message
                 );
 
                 #[cfg(feature = "try-parse")]
@@ -102,9 +104,7 @@ impl Expression {
     pub fn parse_operator(self, input: ParseStream) -> syn::Result<Self> {
         let op: Option<Ident> = input.parse().unwrap_or_else(|err| {
             #[cfg(not(feature = "try-parse"))]
-            proc_macro_error2::abort!(
-                err.span(), "Failed to parse operator"
-            );
+            proc_macro_error2::abort!(err.span(), "Failed to parse operator");
 
             #[cfg(feature = "try-parse")]
             emit_error!(err.span(), "Failed to parse operator");

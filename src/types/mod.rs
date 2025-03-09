@@ -1,7 +1,7 @@
 use crate::mod_def;
 
 mod_def! {!export
-    pub(crate) mod query;
+    pub(crate) mod query_types;
     pub(crate) mod pool;
     pub(crate) mod db;
 }

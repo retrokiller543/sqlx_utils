@@ -14,7 +14,7 @@ fn parse_and_validate(input: TokenStream) -> FilterTable {
         Ok(table) => {
             abort_if_dirty();
             table
-        },
+        }
         Err(err) => {
             abort!(err);
         }

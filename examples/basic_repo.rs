@@ -211,5 +211,8 @@ async fn main() {
         .await
         .unwrap();
 
-    USER_REPO.get_one_by_filter(UserFilter::new("name").id(1)).await.unwrap();
+    USER_REPO
+        .get_one_by_filter(UserFilter::new("name").id(1))
+        .await
+        .unwrap();
 }

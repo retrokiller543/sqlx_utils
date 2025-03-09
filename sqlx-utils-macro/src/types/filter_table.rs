@@ -1,15 +1,15 @@
 use crate::types::columns::ColumnVal;
 use crate::types::filter_sql::FilterSql;
 use crate::types::{crate_name, database_type};
-use proc_macro2::{Ident, TokenStream as TokenStream2};
 use proc_macro_error2::abort_call_site;
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
-use syn::parse::ParseStream;
 use std::collections::HashMap;
-use syn::token::Brace;
-use syn::{parse_quote, Attribute, Token, Type, Visibility};
-use syn_derive::Parse;
 use std::fmt::Write;
+use syn::parse::ParseStream;
+use syn::token::Brace;
+use syn::{Attribute, Token, Type, Visibility, parse_quote};
+use syn_derive::Parse;
 
 use super::columns::Columns;
 
@@ -66,7 +66,7 @@ pub(crate) struct FilterTable {
 pub(crate) struct RepositoryIdent {
     lt_token: Token![<],
     pub(crate) repo_type: Type,
-    gt_token: Token![>]
+    gt_token: Token![>],
 }
 
 impl RepositoryIdent {
@@ -78,8 +78,18 @@ impl RepositoryIdent {
         }
     }
 
-    pub(crate) fn expand_repo_impl(&self, crate_name: &Ident, #[cfg(not(feature = "filter-blanket-impl"))] name: &Ident, sql: &FilterSql, token_stream: &mut TokenStream2) {
-        let FilterSql { columns, table_name, .. } = sql;
+    pub(crate) fn expand_repo_impl(
+        &self,
+        crate_name: &Ident,
+        #[cfg(not(feature = "filter-blanket-impl"))] name: &Ident,
+        sql: &FilterSql,
+        token_stream: &mut TokenStream2,
+    ) {
+        let FilterSql {
+            columns,
+            table_name,
+            ..
+        } = sql;
 
         let mut query_str = String::from("SELECT");
 
@@ -90,13 +100,18 @@ impl RepositoryIdent {
                 )
             }),
             Columns::Defined(cols) => {
-                let columns = cols.iter().cloned().map(|(name, alias)| {
-                    if name != alias {
-                        format!("{name} as {alias}")
-                    } else {
-                        name
-                    }
-                }).collect::<Vec<_>>().join(", ");
+                let columns = cols
+                    .iter()
+                    .cloned()
+                    .map(|(name, alias)| {
+                        if name != alias {
+                            format!("{name} as {alias}")
+                        } else {
+                            name
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
                 write!(query_str, " {columns}").unwrap_or_else(|_| {
                     abort_call_site!(
                         "Failed to write column into string, please rapport this as an issue!"
@@ -106,23 +121,20 @@ impl RepositoryIdent {
         }
 
         write!(query_str, " FROM {} ", table_name).unwrap_or_else(|_| {
-            abort_call_site!(
-                "Failed to write column into string, please rapport this as an issue!"
-            )
+            abort_call_site!("Failed to write column into string, please rapport this as an issue!")
         });
 
         //M: Model + for<'r> FromRow<'r, <Database as DatabaseTrait>::Row> + Send + Unpin,
         let repo_ident = &self.repo_type;
 
-
         let expanded_filter_repo = quote! {
             impl<M> ::#crate_name::traits::FilterRepository<M> for #repo_ident
             where
-                M: ::#crate_name::traits::Model + for<'r> ::#crate_name::sqlx::FromRow<'r, <::#crate_name::types::Database as ::#crate_name::sqlx::Database>::Row> + ::core::marker::Send + ::core::marker::Unpin,
+                M: ::#crate_name::traits::Model + for<'r> ::#crate_name::sqlx::FromRow<'r, <::#crate_name::types::Database as ::#crate_name::sqlx::DatabaseTrait>::Row> + ::core::marker::Send + ::core::marker::Unpin,
                 #repo_ident: ::#crate_name::traits::Repository<M>
             {
-                fn filter_query_builder<'args>() -> ::#crate_name::sqlx::QueryBuilder<'args, ::#crate_name::types::Database> {
-                    ::#crate_name::sqlx::QueryBuilder::new(#query_str)
+                fn filter_query_builder<'args>() -> ::#crate_name::types::QueryBuilder<'args, ::#crate_name::types::Database> {
+                    ::#crate_name::types::QueryBuilder::new(#query_str)
                 }
             }
         };
@@ -134,7 +146,7 @@ impl RepositoryIdent {
             let expanded_ext_filter = quote! {
                 impl<M> ::#crate_name::traits::FilterRepositoryExt<M, #name> for #repo_ident
                 where
-                    M: ::#crate_name::traits::Model + for<'r> ::#crate_name::sqlx::FromRow<'r, <::#crate_name::types::Database as ::#crate_name::sqlx::Database>::Row> + ::core::marker::Send + ::core::marker::Unpin,
+                    M: ::#crate_name::traits::Model + for<'r> ::#crate_name::sqlx::FromRow<'r, <::#crate_name::types::Database as ::#crate_name::sqlx::DatabaseTrait>::Row> + ::core::marker::Send + ::core::marker::Unpin,
                     #repo_ident: ::#crate_name::traits::Repository<M>
                 {}
             };
@@ -263,10 +275,7 @@ impl ToTokens for FilterTable {
 
         tokens.extend(struct_def);
 
-        let FilterSql {
-            expr,
-            ..
-        } = sql;
+        let FilterSql { expr, .. } = sql;
 
         let db_type = database_type();
 
