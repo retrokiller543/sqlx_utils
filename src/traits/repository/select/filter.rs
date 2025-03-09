@@ -609,9 +609,7 @@ where
             filter.apply_filter(&mut builder);
         }
 
-        let builder = Self::post_filter_query(builder);
-
-        builder
+        Self::post_filter_query(builder)
     }
 
     /// If you need anything to be after the WHERE clause in the query you will need to override this

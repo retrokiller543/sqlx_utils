@@ -1,20 +1,24 @@
 error: Expected `IN` after `NOT`, found `NULL`
+
+         = help: =, !=, >, <, >=, <=, LIKE, ILIKE, IN, NOT IN
+
  --> tests/ui/fail/invalid_not_in_operator.rs:6:17
   |
 6 |         age NOT NULL AND i32  // Invalid operator
   |                 ^^^^
 
-error: Supported operators are: ["=", "!=", ">", "<", ">=", "<=", "LIKE", "ILIKE", "IN", "NOT IN"]
- --> tests/ui/fail/invalid_not_in_operator.rs:6:17
+error: Unknown operator `I32`, expected one of `AND`, `OR`, or `NOT`
+ --> tests/ui/fail/invalid_not_in_operator.rs:3:1
   |
-6 |         age NOT NULL AND i32  // Invalid operator
-  |                 ^^^^
-
-error: Failed to parse condition expression
- --> tests/ui/fail/invalid_not_in_operator.rs:6:9
+3 | / sql_filter! {
+4 | |     pub struct UserFilter {
+5 | |         SELECT * FROM users WHERE
+6 | |         age NOT NULL AND i32  // Invalid operator
+7 | |     }
+8 | | }
+  | |_^
   |
-6 |         age NOT NULL AND i32  // Invalid operator
-  |         ^^^
+  = note: this error originates in the macro `sql_filter` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0433]: failed to resolve: use of undeclared type `UserFilter`
   --> tests/ui/fail/invalid_not_in_operator.rs:11:19

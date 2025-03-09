@@ -1,9 +1,9 @@
-use crate::error::ErrorExt;
 use crate::types::columns::ColumnVal;
 use crate::types::sql_operator::SqlOperator;
+use proc_macro_error2::emit_error;
 use proc_macro2::Ident;
-use syn::parse::{Parse, ParseStream};
 use syn::Token;
+use syn::parse::{Parse, ParseStream};
 
 /// Represents a single condition in the WHERE clause.
 ///
@@ -39,6 +39,7 @@ use syn::Token;
 /// - A parameter in the constructor (for required fields)
 /// - A builder method (for optional fields)
 /// - Part of the `apply_filter` implementation
+#[derive(Debug)]
 pub(crate) struct Condition {
     pub(crate) column_name: Ident,
     pub(crate) field_alias: Option<Ident>,
@@ -64,13 +65,16 @@ impl Parse for Condition {
             input.parse::<Token![?]>()?;
         }
 
-        let mut span = input.span();
-        let column_name = input.parse().map_err(|err| {
-            err.with_context(
-                "Failed to parse column name, expected a identifier",
-                Some(span),
-            )
-        })?;
+        let column_name = input.parse().unwrap_or_else(|err| {
+            let span = err.span();
+            emit_error!(
+                span, "Failed to parse condition name";
+                note = "The name will also be used for the column name, if you want to change the name in rust use aliasing `<column_name> as <alias>`"
+            );
+
+            Ident::new("__err__", span)
+        });
+
         let mut field_alias = None;
 
         let lookahead = input.lookahead1();
@@ -78,21 +82,20 @@ impl Parse for Condition {
         if lookahead.peek(Token![as]) {
             input.parse::<Token![as]>()?;
 
-            span = input.span();
-            field_alias = input.parse().map_err(|err| {
-                err.with_context(
-                    "Failed to parse field alias, expected a identifier",
-                    Some(span),
-                )
-            })?;
+            field_alias = input.parse().unwrap_or_else(|err| {
+                let span = err.span();
+                emit_error!(
+                    span,
+                    "Failed to parse column alias, the alias must be a valid identifier"
+                );
+
+                None
+            });
         }
 
-        let operator = input.parse()?;
+        let operator = input.parse()?; // FIXME: Add error logging to SQL operators
 
-        span = input.span();
-        let column_type = input
-            .parse()
-            .map_err(|err| err.with_context("Failed to parse Column value", Some(span)))?;
+        let column_type = input.parse()?;
 
         Ok(Self {
             column_name,

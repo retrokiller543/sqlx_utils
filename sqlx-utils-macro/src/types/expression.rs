@@ -1,13 +1,13 @@
-use crate::error::ErrorExt;
 use crate::types::columns::ColumnVal;
 use crate::types::condition::Condition;
 use crate::types::crate_name;
-use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{format_ident, quote, ToTokens};
+use proc_macro_error2::emit_error;
+use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
+use quote::{ToTokens, format_ident, quote};
 use std::collections::HashMap;
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
-use syn::{parse_quote, TypePath};
+use syn::{TypePath, parse_quote};
 
 /// Represents a logical expression in the WHERE clause.
 ///
@@ -38,48 +38,87 @@ use syn::{parse_quote, TypePath};
 /// - `AND`: `.and()`
 /// - `OR`: `.or()`
 /// - `NOT`: `.not()`
+#[derive(Debug)]
 pub(crate) enum Expression {
     And(Box<Expression>, Box<Expression>),
     Or(Box<Expression>, Box<Expression>),
     Not(Box<Expression>),
     Group(Box<Expression>),
-    Condition(Condition),
+    Condition {
+        condition: Condition,
+        #[allow(dead_code)]
+        span: Span,
+    },
+    Empty,
 }
 
 impl Expression {
+    fn parse_inner(input: ParseStream, start_span: Span) -> syn::Result<Self> {
+        if input.peek(syn::token::Paren) {
+            let content;
+            syn::parenthesized!(content in input);
+            let expr = Self::parse_inner(&content, start_span).unwrap_or_else(|e| {
+                let message = e.to_string();
+                emit_error! {
+                    e.span(), "Failed to parse inner expression: {}", message
+                }
+
+                Expression::Empty
+            });
+
+            #[cfg(feature = "nightly")]
+            if let Expression::Condition { span, .. } = &expr {
+                proc_macro_error2::emit_warning!(
+                    span,
+                    "Unnecessary parentheses around simple condition";
+                    help = "You can remove these parentheses to simplify your filter"
+                );
+            }
+
+            if !input.is_empty() {
+                return expr.parse_operator(input);
+            }
+
+            return Ok(Expression::Group(Box::new(expr)));
+        }
+
+        // Base condition
+        let condition = input.parse()?;
+        let span = start_span.join(input.span()).unwrap_or(start_span);
+        let left = Expression::Condition { condition, span };
+
+        left.parse_operator(input)
+    }
+
     pub fn parse_operator(self, input: ParseStream) -> syn::Result<Self> {
-        let mut span = input.span();
-        let op: Option<Ident> = input
-            .parse()
-            .map_err(|err| err.with_context("Failed to parse operator", Some(span)))?;
+        let op: Option<Ident> = input.parse().unwrap_or_else(|err| {
+            emit_error!(err.span(), "Failed to parse operator");
+            None
+        });
 
         match op.map(|i| i.to_string().to_uppercase()) {
             Some(op) if op == *"AND" => {
-                span = input.span();
-                let right = Self::parse(input).map_err(|err| {
-                    err.with_context("Failed to parse right hand side of expression", Some(span))
-                })?;
+                let right = Self::parse(input).unwrap_or(Expression::Empty);
                 Ok(Expression::And(Box::new(self), Box::new(right)))
             }
             Some(op) if op == *"OR" => {
-                span = input.span();
-                let right = Self::parse(input).map_err(|err| {
-                    err.with_context("Failed to parse right hand side of expression", Some(span))
-                })?;
+                let right = Self::parse(input).unwrap_or(Expression::Empty);
                 Ok(Expression::Or(Box::new(self), Box::new(right)))
             }
             Some(op) if op == *"NOT" => {
-                span = input.span();
-                let expr = Self::parse(input).map_err(|err| {
-                    err.with_context("Failed to parse negated expression", Some(span))
-                })?;
+                let expr = Self::parse(input).unwrap_or(Expression::Empty);
                 Ok(Expression::Not(Box::new(expr)))
             }
             None => Ok(self),
-            Some(op) => Err(syn::Error::new(
-                op.span(),
-                "Unexpected operator, `{}` expected one of `AND`, `OR`, or `NOT`",
-            )),
+            Some(op) => {
+                emit_error!(
+                    op.span(),
+                    "Unknown operator `{}`, expected one of `AND`, `OR`, or `NOT`",
+                    op,
+                );
+
+                Ok(Expression::Empty)
+            }
         }
     }
 
@@ -96,7 +135,7 @@ impl Expression {
         let mut fields = Vec::new();
 
         match self {
-            Expression::Condition(condition) => fields.push((
+            Expression::Condition { condition, .. } => fields.push((
                 condition.rust_name(),
                 &condition.column_type,
                 condition.optional,
@@ -111,6 +150,7 @@ impl Expression {
             }
             Expression::Not(expr) => fields.extend(expr.fields_with_cache(cache)),
             Expression::Group(expr) => fields.extend(expr.fields_with_cache(cache)),
+            _ => {}
         }
 
         cache.insert(self_ptr, fields.clone());
@@ -121,35 +161,14 @@ impl Expression {
 
 impl Parse for Expression {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        if input.peek(syn::token::Paren) {
-            let content;
-            syn::parenthesized!(content in input);
-            let span = content.span();
-            let expr = Self::parse(&content)
-                .map_err(|err| err.with_context("Failed parse inner Expression", Some(span)))?;
-
-            if !input.is_empty() {
-                return expr.parse_operator(input);
-            }
-
-            return Ok(Expression::Group(Box::new(expr)));
-        }
-
-        // Base condition
-        let span = input.span();
-        let left =
-            Expression::Condition(input.parse().map_err(|err| {
-                err.with_context("Failed to parse condition expression", Some(span))
-            })?);
-
-        left.parse_operator(input)
+        Self::parse_inner(input, input.span())
     }
 }
 
 impl ToTokens for Expression {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         let filter_expr = match self {
-            Expression::Condition(c) => {
+            Expression::Condition { condition: c, .. } => {
                 let crate_name = crate_name();
 
                 let operator = &c.operator;
@@ -176,6 +195,7 @@ impl ToTokens for Expression {
             Expression::Or(l, r) => quote! { #l.or(#r) },
             Expression::Not(e) => quote! { #e.not() },
             Self::Group(e) => quote! { #e },
+            _ => TokenStream2::new(),
         };
 
         tokens.extend(filter_expr);

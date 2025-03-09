@@ -37,9 +37,15 @@ fn main() {
 
     if let Some(enabled_by) = db_feature {
         if enabled_by.len() > 1 {
+            let features = enabled_by
+                .iter()
+                .map(|feature| format!("{:?}", feature))
+                .collect::<Vec<String>>()
+                .join(", ");
+
             println!(
-                "cargo:warning=Multiple database features enabled: {:?} potential conflicts can occur. Falling back to 'any' feature",
-                enabled_by
+                "cargo:warning=Multiple database features enabled: {}, potential conflicts can occur. Falling back to 'any' feature",
+                features
             );
             println!("cargo:rustc-cfg=feature=\"any\"");
             println!("cargo:rustc-env=DATABASE_FEATURE=any");

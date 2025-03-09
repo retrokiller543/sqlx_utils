@@ -1,9 +1,9 @@
-use crate::error::ErrorExt;
 use crate::types::crate_name;
+use proc_macro_error2::emit_error;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
+use quote::{ToTokens, quote};
 use syn::Token;
+use syn::parse::{Parse, ParseStream};
 
 /// Represents SQL comparison operators.
 ///
@@ -40,6 +40,7 @@ use syn::Token;
 /// - `ILIKE` → `i_like`
 /// - `IN` → `in_values`
 /// - `NOT IN` → `not_in_values`
+#[derive(Debug, Copy, Clone)]
 pub(crate) enum SqlOperator {
     Equals,
     NotEquals,
@@ -73,7 +74,6 @@ impl Parse for SqlOperator {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
 
-        let mut span;
         if lookahead.peek(Token![=]) {
             input.parse::<Token![=]>()?;
             Ok(SqlOperator::Equals)
@@ -94,11 +94,8 @@ impl Parse for SqlOperator {
                 Ok(SqlOperator::LessThan)
             }
         } else {
-            span = input.span();
-            let op: Ident = input.parse().map_err(|err| {
-                err.with_context("Expected a identifier as the operator", Some(span))
-            })?;
-            match op.to_string().to_uppercase().as_str() {
+            let op: Ident = input.parse()?;
+            Ok(match op.to_string().to_uppercase().as_str() {
                 "LIKE" => Ok(SqlOperator::Like),
                 "ILIKE" => Ok(SqlOperator::ILike),
                 "IN" => Ok(SqlOperator::In),
@@ -107,13 +104,7 @@ impl Parse for SqlOperator {
                         input.parse::<Token![=]>()?;
                         Ok(SqlOperator::NotEquals)
                     } else {
-                        span = input.span();
-                        let next: Ident = input.parse().map_err(|err| {
-                            err.with_context(
-                                "Expected to find `IN` after `NOT` but did not find a identifier",
-                                Some(span),
-                            )
-                        })?;
+                        let next: Ident = input.parse()?;
                         if next.to_string().to_uppercase() == "IN" {
                             Ok(SqlOperator::NotIn)
                         } else {
@@ -129,12 +120,15 @@ impl Parse for SqlOperator {
                     format!("Invalid SQL operator `{}`", invalid),
                 )),
             }
-            .map_err(|error| {
-                error.with_context(
-                    format!("Supported operators are: {:?}", SqlOperator::SUPPORTED),
-                    Some(span),
-                )
-            })
+            .unwrap_or_else(|error| {
+                let supported = Self::SUPPORTED.join(", ");
+                emit_error!(
+                    error.span(), "{}", error;
+                    help = supported;
+                );
+
+                SqlOperator::Equals
+            }))
         }
     }
 }
@@ -145,7 +139,7 @@ impl ToTokens for SqlOperator {
 
         match self {
             SqlOperator::Equals => quote! {::#crate_name::filter::equals},
-            SqlOperator::NotEquals => quote! {::#crate_name::filter::not_equal},
+            SqlOperator::NotEquals => quote! {::#crate_name::filter::not_equals},
             SqlOperator::GreaterThan => quote! {::#crate_name::filter::greater_than},
             SqlOperator::LessThan => quote! {::#crate_name::filter::less_than},
             SqlOperator::GreaterThanOrEqual => {

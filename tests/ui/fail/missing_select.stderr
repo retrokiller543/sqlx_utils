@@ -1,4 +1,8 @@
-error: Expected `SELECT`, found `FROM`
+error: Expected `SELECT` at the beginning of SQL filter, got `FROM` instead
+
+         = help: SQL filter must start with `SELECT` followed by columns, table and WHERE clause
+         = note: It is case insensitive so `select` will also work.
+
  --> tests/ui/fail/missing_select.rs:5:9
   |
 5 |         FROM users WHERE  // Missing SELECT clause

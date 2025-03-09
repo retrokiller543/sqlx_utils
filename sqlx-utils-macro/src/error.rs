@@ -32,3 +32,5 @@ impl<T> ErrorExt for Result<T, syn::Error> {
         self.map_err(|error| error.with_suggestion(suggestion, span))
     }
 }
+
+pub type Result<T, E = syn::Error> = std::result::Result<T, E>;

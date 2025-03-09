@@ -1,9 +1,9 @@
-use crate::error::ErrorExt;
 use crate::types::columns::Columns;
 use crate::types::expression::Expression;
+use proc_macro_error2::{abort, emit_error};
 use proc_macro2::Ident;
-use syn::parse::{Parse, ParseStream};
 use syn::Error;
+use syn::parse::{Parse, ParseStream};
 
 /// Represents the SQL query portion of a filter definition.
 ///
@@ -28,6 +28,7 @@ use syn::Error;
 /// - `table_name`: The name of the database table
 /// - `expr`: The parsed filter expression
 #[allow(dead_code)]
+#[derive(Debug)]
 pub(crate) struct FilterSql {
     pub(crate) columns: Columns,
     pub(crate) table_name: Ident,
@@ -36,44 +37,68 @@ pub(crate) struct FilterSql {
 
 impl Parse for FilterSql {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut span = input.span();
-        let select = input.parse::<Ident>()?;
+        let select = match input.parse::<Ident>() {
+            Ok(ident) => ident,
+            Err(e) => {
+                abort!(e.span(), "Expected SQL query to start with `SELECT`");
+            }
+        };
 
-        if select.to_string().to_uppercase().as_str() != "SELECT" {
-            return Err(Error::new(
-                span,
-                format!("Expected `SELECT`, found `{}`", select),
-            ));
+        let select_str = select.to_string();
+
+        if select_str.to_uppercase() != "SELECT" {
+            abort!(
+                select.span(),
+                "Expected `SELECT` at the beginning of SQL filter, got `{}` instead", select_str;
+                help = "SQL filter must start with `SELECT` followed by columns, table and WHERE clause";
+                note = "It is case insensitive so `select` will also work."
+            );
         }
 
         let columns = input.parse()?;
 
-        span = input.span();
         let from = input.parse::<Ident>()?;
 
         if from.to_string().to_uppercase().as_str() != "FROM" {
             return Err(Error::new(
-                span,
+                from.span(),
                 format!("Expected `FROM`, found `{}`", from),
             ));
         }
 
-        span = input.span();
-        let table_name: Ident = input.parse().with_context(
-            "Failed to parse table name, expected an identifier",
-            Some(span),
-        )?;
+        let span = input.span();
+        let mut table_name: Ident = input.parse().unwrap_or_else(|e| {
+            emit_error!(
+                e.span(), "Failed to parse table name";
+                help = "The table name can be any identifier not reserved by rust or the keyword `WHERE`";
+            );
 
-        span = input.span();
-        let where_ident = input
-            .parse::<Ident>()
-            .with_context("Expected an identifier after the table name", Some(span))?;
+            Ident::new("__err__", span)
+        });
 
-        if where_ident.to_string().to_uppercase().as_str() != "WHERE" {
-            return Err(Error::new(
-                span,
-                format!("Expected `WHERE`, found `{}`", where_ident),
-            ));
+        let mut table_name_err = false;
+        if table_name.to_string().to_uppercase().as_str() == "WHERE" {
+            emit_error!(
+                table_name, "The keyword `WHERE` is reserved and cant be used as a table name";
+                help = "Any identifier is allowed in this location except for `WHERE`";
+            );
+            table_name_err = true;
+            table_name = Ident::new("__err__", table_name.span());
+        }
+
+        if !table_name_err {
+            let where_ident = input.parse::<Ident>().unwrap_or_else(|err| {
+                emit_error!(err.span(), "Failed to parse `WHERE`");
+                Ident::new("__err__", span)
+            });
+
+            let where_str = where_ident.to_string();
+
+            if where_str.to_uppercase().as_str() != "WHERE" {
+                emit_error! {
+                    where_ident, "Expected `WHERE` but instead found `{}`", where_str
+                }
+            }
         }
 
         let expr = input.parse()?;

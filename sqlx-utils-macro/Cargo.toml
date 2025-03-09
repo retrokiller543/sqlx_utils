@@ -7,13 +7,14 @@ repository.workspace = true
 authors.workspace = true
 readme.workspace = true
 license.workspace = true
+build = "build.rs"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-cfg-if = "1.0.0"
-proc-macro2 = "1.0.94"
+proc-macro-error2 = "2.0.1"
+proc-macro2 = { version =  "1.0.94", features = [] }
 quote = "1.0.39"
 syn = { version =  "2.0.99", features = ["full"] }
 syn_derive = { version = "0.2.0", features = ["full"] }
@@ -24,5 +25,6 @@ sqlite = []
 any = []
 postgres = []
 mysql = []
+nightly = ["proc-macro-error2/nightly"]
 
 filter_debug_impl = []

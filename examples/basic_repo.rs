@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+#![allow(clippy::extra_unused_lifetimes)]
+#![allow(clippy::needless_lifetimes)]
 
 use parking_lot::ArcMutexGuard;
 use sqlx::{QueryBuilder, Transaction};
@@ -11,7 +13,7 @@ pub static DATABASE_URL: LazyLock<String> =
 
 sql_filter! {
     pub struct UserFilter {
-        SELECT * FROM users WHERE ?id = i64
+        SELECT * FROM user WHERE (?id = i64 AND name LIKE String)
     }
 }
 

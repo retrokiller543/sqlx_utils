@@ -1,7 +1,8 @@
+use proc_macro_error2::emit_error;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{LitStr, Token, Type};
+use syn::{LitStr, Token, Type, parse_quote_spanned};
 
 /// Represents column selection in an SQL query.
 ///
@@ -22,6 +23,7 @@ use syn::{LitStr, Token, Type};
 /// # Code Generation
 ///
 /// Expands to SQL column selectors in the generated query.
+#[derive(Debug)]
 pub(crate) enum Columns {
     All,
     Defined(Vec<(String, String)>),
@@ -92,6 +94,7 @@ impl Parse for Columns {
 ///
 /// Used to specify the expected type of a filter field or to include
 /// raw SQL expressions directly in the query.
+#[derive(Debug)]
 pub(crate) enum ColumnVal {
     Type(Box<Type>),
     Raw(LitStr),
@@ -104,7 +107,16 @@ impl Parse for ColumnVal {
         if lookahead.peek(LitStr) {
             Ok(Self::Raw(input.parse()?))
         } else {
-            Ok(Self::Type(input.parse()?))
+            Ok(Self::Type(input.parse().unwrap_or_else(|err| {
+                let span = err.span();
+
+                emit_error!(
+                    span, "Expected column value to be either a literal string or a Type";
+                    help = "See https://docs.rs/syn/2.0.99/syn/enum.Type.html for supported types."
+                );
+
+                parse_quote_spanned! { span=> ()}
+            })))
         }
     }
 }

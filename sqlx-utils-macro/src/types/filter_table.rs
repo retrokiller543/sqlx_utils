@@ -2,10 +2,10 @@ use crate::types::columns::ColumnVal;
 use crate::types::filter_sql::FilterSql;
 use crate::types::{crate_name, database_type};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use std::collections::HashMap;
 use syn::token::Brace;
-use syn::{parse_quote, Attribute, Token, Visibility};
+use syn::{Attribute, Token, Visibility, parse_quote};
 use syn_derive::Parse;
 
 /// Top-level structure representing a SQL filter definition.
@@ -37,7 +37,7 @@ use syn_derive::Parse;
 /// - `apply_filter`: Applies the filter conditions to a query builder
 /// - `should_apply_filter`: Determines if the filter should be applied (true if
 ///   all required fields are present and at least one optional field is present)
-#[derive(Parse)]
+#[derive(Parse, Debug)]
 #[allow(dead_code)]
 pub(crate) struct FilterTable {
     #[parse(Attribute::parse_outer)]

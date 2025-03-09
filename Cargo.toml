@@ -8,7 +8,7 @@ repository = "https://github.com/retrokiller543/sqlx_utils"
 authors = ["Emil Schütt <emil.schutt@gmail.com>"]
 readme = "README.md"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 
 [package]
 name = "sqlx-utils"
@@ -36,6 +36,7 @@ parking_lot = { version = "0.12.3", features = ["send_guard", "arc_lock"] }
 trybuild = "1.0"
 
 [features]
+#default = ["any", "filter_debug_impl", "nightly"]
 default = ["any", "filter_debug_impl"]
 sqlite = ["sqlx-utils-macro/sqlite", "sqlx/sqlite"]
 any = ["sqlx-utils-macro/any", "sqlx/any"]
@@ -44,3 +45,4 @@ mysql = ["sqlx-utils-macro/mysql", "sqlx/mysql"]
 filter_debug_impl = ["sqlx-utils-macro/filter_debug_impl"]
 log_err = []
 insert_duplicate = []
+nightly = ["sqlx-utils-macro/nightly"]

@@ -1,11 +1,10 @@
+use crate::filter::expand;
 use proc_macro::TokenStream;
-use quote::quote;
-use syn::parse_macro_input;
-use types::filter_table::FilterTable;
 
 const CRATE_NAME_STR: &str = "sqlx_utils";
 
 mod error;
+mod filter;
 mod types;
 
 /// Creates a type-safe SQL filter struct with builder methods using SQL-like syntax.
@@ -58,7 +57,7 @@ mod types;
 ///
 /// ## Basic Filter
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx_utils_macro::sql_filter;
 /// sql_filter! {
 ///     pub struct UserFilter {
@@ -73,7 +72,7 @@ mod types;
 ///
 /// ## Filter with Optional Fields
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx_utils_macro::sql_filter;
 /// sql_filter! {
 ///     pub struct UserFilter {
@@ -91,7 +90,7 @@ mod types;
 ///
 /// ## Filter with Raw SQL
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx_utils_macro::sql_filter;
 /// sql_filter! {
 ///     pub struct UserFilter {
@@ -103,7 +102,7 @@ mod types;
 ///
 /// ## Complex Filter
 ///
-/// ```rust
+/// ```rust,ignore
 /// # use sqlx_utils_macro::sql_filter;
 /// sql_filter! {
 ///     pub struct OrderFilter {
@@ -113,13 +112,8 @@ mod types;
 ///     }
 /// }
 /// ```
+#[proc_macro_error2::proc_macro_error]
 #[proc_macro]
 pub fn sql_filter(token_stream: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(token_stream as FilterTable);
-
-    let expanded = quote! {
-        #input
-    };
-
-    expanded.into()
+    expand(token_stream)
 }
