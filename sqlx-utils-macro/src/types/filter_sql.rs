@@ -1,6 +1,8 @@
 use crate::types::columns::Columns;
 use crate::types::expression::Expression;
-use proc_macro_error2::{abort, emit_error};
+#[cfg(feature = "try-parse")]
+use proc_macro_error2::emit_error;
+use proc_macro_error2::abort;
 use proc_macro2::Ident;
 use syn::Error;
 use syn::parse::{Parse, ParseStream};
@@ -40,7 +42,7 @@ impl Parse for FilterSql {
         let select = match input.parse::<Ident>() {
             Ok(ident) => ident,
             Err(e) => {
-                abort!(e.span(), "Expected SQL query to start with `SELECT`");
+                abort!(e.span(), "Expected SQL query to start with `SELECT` Identifier");
             }
         };
 
@@ -66,35 +68,70 @@ impl Parse for FilterSql {
             ));
         }
 
-        let span = input.span();
-        let mut table_name: Ident = input.parse().unwrap_or_else(|e| {
-            emit_error!(
-                e.span(), "Failed to parse table name";
+        let table_name: Ident = input.parse().unwrap_or_else(|e| {
+            let span = e.span();
+
+            #[cfg(not(feature = "try-parse"))]
+            proc_macro_error2::abort!(
+                span, "Failed to parse table name";
                 help = "The table name can be any identifier not reserved by rust or the keyword `WHERE`";
             );
 
+            #[cfg(feature = "try-parse")]
+            emit_error!(
+                span, "Failed to parse table name";
+                help = "The table name can be any identifier not reserved by rust or the keyword `WHERE`";
+            );
+
+            #[cfg(feature = "try-parse")]
             Ident::new("__err__", span)
         });
 
+        #[cfg(feature = "try-parse")]
         let mut table_name_err = false;
+
+        #[cfg(not(feature = "try-parse"))]
+        let table_name_err = false;
         if table_name.to_string().to_uppercase().as_str() == "WHERE" {
-            emit_error!(
+            #[cfg(not(feature = "try-parse"))]
+            proc_macro_error2::abort!(
                 table_name, "The keyword `WHERE` is reserved and cant be used as a table name";
                 help = "Any identifier is allowed in this location except for `WHERE`";
             );
-            table_name_err = true;
-            table_name = Ident::new("__err__", table_name.span());
+            
+            #[cfg(feature = "try-parse")]
+            {
+                emit_error!(
+                    table_name, "The keyword `WHERE` is reserved and cant be used as a table name";
+                    help = "Any identifier is allowed in this location except for `WHERE`";
+                );
+                table_name_err = true;
+            }
         }
 
         if !table_name_err {
             let where_ident = input.parse::<Ident>().unwrap_or_else(|err| {
-                emit_error!(err.span(), "Failed to parse `WHERE`");
+                let span = err.span();
+
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
+                    span, "Failed to parse `WHERE`"
+                );
+                #[cfg(feature = "try-parse")]
+                emit_error!(span, "Failed to parse `WHERE`");
+                #[cfg(feature = "try-parse")]
                 Ident::new("__err__", span)
             });
 
             let where_str = where_ident.to_string();
 
             if where_str.to_uppercase().as_str() != "WHERE" {
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
+                    where_ident, "Expected `WHERE` but instead found `{}`", where_str
+                );
+
+                #[cfg(feature = "try-parse")]
                 emit_error! {
                     where_ident, "Expected `WHERE` but instead found `{}`", where_str
                 }

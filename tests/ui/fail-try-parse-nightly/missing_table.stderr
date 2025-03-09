@@ -1,0 +1,5 @@
+error: Expected `FROM`, found `WHERE`
+ --> tests/ui/fail-try-parse-nightly/missing_table.rs:5:18
+  |
+5 |         SELECT * WHERE  // Missing FROM clause
+  |                  ^^^^^

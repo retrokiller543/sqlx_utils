@@ -1,5 +1,6 @@
 use crate::types::columns::ColumnVal;
 use crate::types::sql_operator::SqlOperator;
+#[cfg(feature = "try-parse")]
 use proc_macro_error2::emit_error;
 use proc_macro2::Ident;
 use syn::Token;
@@ -67,11 +68,19 @@ impl Parse for Condition {
 
         let column_name = input.parse().unwrap_or_else(|err| {
             let span = err.span();
+            #[cfg(not(feature = "try-parse"))]
+            proc_macro_error2::abort!(
+                span, "Failed to parse condition name";
+                note = "The name will also be used for the column name, if you want to change the name in rust use aliasing `<column_name> as <alias>`"
+            );
+
+            #[cfg(feature = "try-parse")]
             emit_error!(
                 span, "Failed to parse condition name";
                 note = "The name will also be used for the column name, if you want to change the name in rust use aliasing `<column_name> as <alias>`"
             );
 
+            #[cfg(feature = "try-parse")]
             Ident::new("__err__", span)
         });
 
@@ -84,11 +93,19 @@ impl Parse for Condition {
 
             field_alias = input.parse().unwrap_or_else(|err| {
                 let span = err.span();
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
+                    span,
+                    "Failed to parse column alias, the alias must be a valid identifier"
+                );
+
+                #[cfg(feature = "try-parse")]
                 emit_error!(
                     span,
                     "Failed to parse column alias, the alias must be a valid identifier"
                 );
 
+                #[cfg(feature = "try-parse")]
                 None
             });
         }

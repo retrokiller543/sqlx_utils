@@ -3,6 +3,7 @@
 #![allow(clippy::needless_lifetimes)]
 
 use parking_lot::ArcMutexGuard;
+use sqlx::prelude::FromRow;
 use sqlx::{QueryBuilder, Transaction};
 use sqlx_utils::prelude::*;
 use std::sync::{Arc, LazyLock};
@@ -12,12 +13,12 @@ pub static DATABASE_URL: LazyLock<String> =
     LazyLock::new(|| std::env::var("DATABASE_URL").expect("failed to get DATABASE_URL"));
 
 sql_filter! {
-    pub struct UserFilter {
-        SELECT * FROM user WHERE (?id = i64 AND name LIKE String)
+    pub struct UserFilter<UserRepo> {
+        SELECT id, name, email as username FROM users WHERE (?id = i64 AND name LIKE String)
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, FromRow)]
 pub struct User {
     id: i64,
     name: String,
@@ -209,4 +210,6 @@ async fn main() {
         .delete_by_values_in_transaction("id", [1, 2, 3, 11, 22])
         .await
         .unwrap();
+
+    USER_REPO.get_one_by_filter(UserFilter::new("name").id(1)).await.unwrap();
 }

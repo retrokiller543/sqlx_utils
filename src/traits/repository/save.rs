@@ -104,7 +104,7 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     ///
     /// # Example
     ///
-    /// ```no_compile
+    /// ```ignore
     /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
     ///     repo.save(user).await // Will insert or update based on user.id
     /// }
@@ -142,7 +142,7 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     ///
     /// # Example
     ///
-    /// ```no_compile
+    /// ```ignore
     /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
     ///     repo.save(user).await // Will insert or update based on user.id
     /// }
@@ -179,7 +179,7 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     ///
     /// # Example
     ///
-    /// ```no_compile
+    /// ```ignore
     /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
     ///     repo.save(user).await // Will insert or update based on user.id
     /// }
@@ -209,7 +209,7 @@ pub trait SaveRepository<M: Model>: InsertableRepository<M> + UpdatableRepositor
     ///
     /// # Example
     ///
-    /// ```no_compile
+    /// ```ignore
     /// async fn save_user(repo: &UserRepository, user: &User) -> crate::Result<()> {
     ///     repo.save(user).await // Will insert or update based on user.id
     /// }

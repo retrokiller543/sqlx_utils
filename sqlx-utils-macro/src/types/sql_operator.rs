@@ -1,4 +1,5 @@
 use crate::types::crate_name;
+#[cfg(feature = "try-parse")]
 use proc_macro_error2::emit_error;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
@@ -122,11 +123,20 @@ impl Parse for SqlOperator {
             }
             .unwrap_or_else(|error| {
                 let supported = Self::SUPPORTED.join(", ");
-                emit_error!(
+
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
                     error.span(), "{}", error;
-                    help = supported;
+                    help = "Supported operators are: {}", supported;
                 );
 
+                #[cfg(feature = "try-parse")]
+                emit_error!(
+                    error.span(), "{}", error;
+                    help = "Supported operators are: {}", supported;
+                );
+
+                #[cfg(feature = "try-parse")]
                 SqlOperator::Equals
             }))
         }

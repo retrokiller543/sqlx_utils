@@ -462,6 +462,7 @@ macro_rules! filter_repository_ext {
             }
         }
 
+        #[cfg(feature = "filter-blanket-impl")]
         impl<M, Filter, T> FilterRepositoryExt<M, Filter> for T
         where
             T: FilterRepository<M>,

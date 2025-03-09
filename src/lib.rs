@@ -9,6 +9,7 @@ mod test;
 pub mod traits;
 pub mod types;
 pub mod utils;
+pub mod sqlx;
 
 pub use error::{Error, Result};
 pub use sqlx_utils_macro::sql_filter;

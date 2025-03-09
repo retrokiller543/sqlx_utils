@@ -2,11 +2,16 @@ use crate::types::columns::ColumnVal;
 use crate::types::filter_sql::FilterSql;
 use crate::types::{crate_name, database_type};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
+use proc_macro_error2::abort_call_site;
 use quote::{ToTokens, quote};
+use syn::parse::ParseStream;
 use std::collections::HashMap;
 use syn::token::Brace;
-use syn::{Attribute, Token, Visibility, parse_quote};
+use syn::{parse_quote, Attribute, Token, Type, Visibility};
 use syn_derive::Parse;
+use std::fmt::Write;
+
+use super::columns::Columns;
 
 /// Top-level structure representing a SQL filter definition.
 ///
@@ -46,11 +51,97 @@ pub(crate) struct FilterTable {
     _struct: Token![struct],
     pub(crate) name: Ident,
 
+    #[parse(RepositoryIdent::parse_repository_ident)]
+    pub(crate) repo: Option<RepositoryIdent>,
+
     #[syn(braced)]
     _brace: Brace,
 
     #[syn(in = _brace)]
     pub(crate) sql: FilterSql,
+}
+
+#[derive(Parse, Debug)]
+#[allow(dead_code)]
+pub(crate) struct RepositoryIdent {
+    lt_token: Token![<],
+    pub(crate) repo_type: Type,
+    gt_token: Token![>]
+}
+
+impl RepositoryIdent {
+    pub(crate) fn parse_repository_ident(input: ParseStream) -> syn::Result<Option<Self>> {
+        if input.peek(Token![<]) {
+            Ok(Some(input.parse()?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub(crate) fn expand_repo_impl(&self, crate_name: &Ident, #[cfg(not(feature = "filter-blanket-impl"))] name: &Ident, sql: &FilterSql, token_stream: &mut TokenStream2) {
+        let FilterSql { columns, table_name, .. } = sql;
+
+        let mut query_str = String::from("SELECT");
+
+        match columns {
+            Columns::All => write!(query_str, " *").unwrap_or_else(|_| {
+                abort_call_site!(
+                    "Failed to write column into string, please rapport this as an issue!"
+                )
+            }),
+            Columns::Defined(cols) => {
+                let columns = cols.iter().cloned().map(|(name, alias)| {
+                    if name != alias {
+                        format!("{name} as {alias}")
+                    } else {
+                        name
+                    }
+                }).collect::<Vec<_>>().join(", ");
+                write!(query_str, " {columns}").unwrap_or_else(|_| {
+                    abort_call_site!(
+                        "Failed to write column into string, please rapport this as an issue!"
+                    )
+                })
+            }
+        }
+
+        write!(query_str, " FROM {} ", table_name).unwrap_or_else(|_| {
+            abort_call_site!(
+                "Failed to write column into string, please rapport this as an issue!"
+            )
+        });
+
+        //M: Model + for<'r> FromRow<'r, <Database as DatabaseTrait>::Row> + Send + Unpin,
+        let repo_ident = &self.repo_type;
+
+
+        let expanded_filter_repo = quote! {
+            impl<M> ::#crate_name::traits::FilterRepository<M> for #repo_ident
+            where
+                M: ::#crate_name::traits::Model + for<'r> ::#crate_name::sqlx::FromRow<'r, <::#crate_name::types::Database as ::#crate_name::sqlx::Database>::Row> + ::core::marker::Send + ::core::marker::Unpin,
+                #repo_ident: ::#crate_name::traits::Repository<M>
+            {
+                fn filter_query_builder<'args>() -> ::#crate_name::sqlx::QueryBuilder<'args, ::#crate_name::types::Database> {
+                    ::#crate_name::sqlx::QueryBuilder::new(#query_str)
+                }
+            }
+        };
+
+        token_stream.extend(expanded_filter_repo);
+
+        #[cfg(not(feature = "filter-blanket-impl"))]
+        {
+            let expanded_ext_filter = quote! {
+                impl<M> ::#crate_name::traits::FilterRepositoryExt<M, #name> for #repo_ident
+                where
+                    M: ::#crate_name::traits::Model + for<'r> ::#crate_name::sqlx::FromRow<'r, <::#crate_name::types::Database as ::#crate_name::sqlx::Database>::Row> + ::core::marker::Send + ::core::marker::Unpin,
+                    #repo_ident: ::#crate_name::traits::Repository<M>
+                {}
+            };
+
+            token_stream.extend(expanded_ext_filter);
+        }
+    }
 }
 
 impl ToTokens for FilterTable {
@@ -62,6 +153,7 @@ impl ToTokens for FilterTable {
             vis,
             name,
             sql,
+            repo,
             ..
         } = self;
 
@@ -172,15 +264,9 @@ impl ToTokens for FilterTable {
         tokens.extend(struct_def);
 
         let FilterSql {
-            /*columns,
-            table_name,*/
             expr,
             ..
         } = sql;
-
-        /*let stmt = quote! {
-            SELECT #columns FROM #table_name WHERE
-        }.to_string();*/
 
         let db_type = database_type();
 
@@ -215,5 +301,12 @@ impl ToTokens for FilterTable {
         };
 
         tokens.extend(expanded);
+
+        if let Some(repo) = repo {
+            #[cfg(not(feature = "filter-blanket-impl"))]
+            repo.expand_repo_impl(&crate_name, name, sql, tokens);
+            #[cfg(feature = "filter-blanket-impl")]
+            repo.expand_repo_impl(&crate_name, sql, tokens);
+        }
     }
 }

@@ -1,0 +1,23 @@
+error: The keyword `WHERE` is reserved and cant be used as a table name
+ --> tests/ui/fail-try-parse-nightly/missing_table_and_operator.rs:5:23
+  |
+5 |         SELECT * FROM WHERE  // Missing FROM clause
+  |                       ^^^^^
+  |
+  = help: Any identifier is allowed in this location except for `WHERE`
+
+error: Invalid SQL operator `EQUALS`
+ --> tests/ui/fail-try-parse-nightly/missing_table_and_operator.rs:6:13
+  |
+6 |         (id EQUALS i32)
+  |             ^^^^^^
+  |
+  = help: Supported operators are: =, !=, >, <, >=, <=, LIKE, ILIKE, IN, NOT IN
+
+warning: Unnecessary parentheses around simple condition
+ --> tests/ui/fail-try-parse-nightly/missing_table_and_operator.rs:6:9
+  |
+6 |         (id EQUALS i32)
+  |         ^^^^^^^^^^^^^^^
+  |
+  = help: You can remove these parentheses to simplify your filter

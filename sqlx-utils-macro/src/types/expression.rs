@@ -1,6 +1,7 @@
 use crate::types::columns::ColumnVal;
 use crate::types::condition::Condition;
 use crate::types::crate_name;
+#[cfg(feature = "try-parse")]
 use proc_macro_error2::emit_error;
 use proc_macro2::{Ident, Span, TokenStream as TokenStream2};
 use quote::{ToTokens, format_ident, quote};
@@ -59,10 +60,18 @@ impl Expression {
             syn::parenthesized!(content in input);
             let expr = Self::parse_inner(&content, start_span).unwrap_or_else(|e| {
                 let message = e.to_string();
+
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
+                    e.span(), "Failed to parse inner expression: {}", message
+                );
+
+                #[cfg(feature = "try-parse")]
                 emit_error! {
                     e.span(), "Failed to parse inner expression: {}", message
                 }
 
+                #[cfg(feature = "try-parse")]
                 Expression::Empty
             });
 
@@ -92,7 +101,15 @@ impl Expression {
 
     pub fn parse_operator(self, input: ParseStream) -> syn::Result<Self> {
         let op: Option<Ident> = input.parse().unwrap_or_else(|err| {
+            #[cfg(not(feature = "try-parse"))]
+            proc_macro_error2::abort!(
+                err.span(), "Failed to parse operator"
+            );
+
+            #[cfg(feature = "try-parse")]
             emit_error!(err.span(), "Failed to parse operator");
+
+            #[cfg(feature = "try-parse")]
             None
         });
 
@@ -111,12 +128,21 @@ impl Expression {
             }
             None => Ok(self),
             Some(op) => {
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
+                    op.span(),
+                    "Unknown operator `{}`, expected one of `AND`, `OR`, or `NOT`",
+                    op,
+                );
+
+                #[cfg(feature = "try-parse")]
                 emit_error!(
                     op.span(),
                     "Unknown operator `{}`, expected one of `AND`, `OR`, or `NOT`",
                     op,
                 );
 
+                #[cfg(feature = "try-parse")]
                 Ok(Expression::Empty)
             }
         }

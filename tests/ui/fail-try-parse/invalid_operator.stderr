@@ -1,0 +1,8 @@
+error: Invalid SQL operator `INVALID`
+
+         = help: Supported operators are: =, !=, >, <, >=, <=, LIKE, ILIKE, IN, NOT IN
+
+ --> tests/ui/fail-try-parse/invalid_operator.rs:6:13
+  |
+6 |         age INVALID i32  // Invalid operator
+  |             ^^^^^^^

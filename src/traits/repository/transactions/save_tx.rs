@@ -31,7 +31,7 @@ where
     ///
     /// # Example
     ///
-    /// ```no_compile
+    /// ```ignore
     /// let saved_model = repo.save_in_transaction(model).await?;
     /// ```
     fn save_in_transaction<'a>(

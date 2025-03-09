@@ -1,0 +1,17 @@
+error: The keyword `WHERE` is reserved and cant be used as a table name
+
+         = help: Any identifier is allowed in this location except for `WHERE`
+
+ --> tests/ui/fail-try-parse/missing_table_and_operator.rs:5:23
+  |
+5 |         SELECT * FROM WHERE  // Missing FROM clause
+  |                       ^^^^^
+
+error: Invalid SQL operator `EQUALS`
+
+         = help: Supported operators are: =, !=, >, <, >=, <=, LIKE, ILIKE, IN, NOT IN
+
+ --> tests/ui/fail-try-parse/missing_table_and_operator.rs:6:12
+  |
+6 |         id EQUALS i32
+  |            ^^^^^^

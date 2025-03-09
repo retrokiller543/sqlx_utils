@@ -1,8 +1,11 @@
+#[cfg(feature = "try-parse")]
 use proc_macro_error2::emit_error;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{ToTokens, quote};
 use syn::parse::{Parse, ParseStream};
-use syn::{LitStr, Token, Type, parse_quote_spanned};
+use syn::{LitStr, Token, Type};
+#[cfg(feature = "try-parse")]
+use syn::parse_quote_spanned;
 
 /// Represents column selection in an SQL query.
 ///
@@ -110,11 +113,19 @@ impl Parse for ColumnVal {
             Ok(Self::Type(input.parse().unwrap_or_else(|err| {
                 let span = err.span();
 
+                #[cfg(not(feature = "try-parse"))]
+                proc_macro_error2::abort!(
+                    span, "Expected column value to be either a literal string or a Type";
+                    help = "See https://docs.rs/syn/2.0.99/syn/enum.Type.html for supported types."
+                );
+
+                #[cfg(feature = "try-parse")]
                 emit_error!(
                     span, "Expected column value to be either a literal string or a Type";
                     help = "See https://docs.rs/syn/2.0.99/syn/enum.Type.html for supported types."
                 );
 
+                #[cfg(feature = "try-parse")]
                 parse_quote_spanned! { span=> ()}
             })))
         }
