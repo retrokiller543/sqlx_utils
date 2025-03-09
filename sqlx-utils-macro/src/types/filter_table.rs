@@ -64,7 +64,7 @@ pub(crate) struct FilterTable {
 
 #[derive(Parse)]
 #[allow(dead_code)]
-#[cfg_attr(debug_assertions, derive(Debug))]
+#[cfg_attr(feature = "debug", derive(Debug))]
 pub(crate) struct RepositoryIdent {
     lt_token: Token![<],
     pub(crate) repo_type: Type,
