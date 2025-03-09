@@ -1,0 +1,7 @@
+error: Expected `IN` after `NOT`, found `NULL`
+ --> tests/ui/fail-nightly/invalid_not_in_operator.rs:6:17
+  |
+6 |         age NOT NULL AND i32  // Invalid operator
+  |                 ^^^^
+  |
+  = help: Supported operators are: =, !=, >, <, >=, <=, LIKE, ILIKE, IN, NOT IN

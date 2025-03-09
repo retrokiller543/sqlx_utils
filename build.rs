@@ -1,6 +1,8 @@
 #![allow(unused_assignments, unused_mut)]
 
-fn main() {
+use rustc_version::{Channel, version_meta};
+
+fn check_db_features() {
     let mut db_feature: Option<Vec<&str>> = None;
 
     #[cfg(feature = "any")]
@@ -55,4 +57,16 @@ fn main() {
             "No database feature enabled, please enable one of the following: `any`, `postgres`, `mysql`, `sqlite`"
         )
     }
+}
+
+fn main() {
+    let channel = match version_meta().unwrap().channel {
+        Channel::Stable => "CHANNEL_STABLE",
+        Channel::Beta => "CHANNEL_BETA",
+        Channel::Nightly => "CHANNEL_NIGHTLY",
+        Channel::Dev => "CHANNEL_DEV",
+    };
+    println!("cargo:rustc-cfg={}", channel);
+
+    check_db_features();
 }

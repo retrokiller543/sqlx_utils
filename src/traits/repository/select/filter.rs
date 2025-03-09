@@ -249,16 +249,11 @@ macro_rules! filter_repository_ext {
         /// # impl Repository<User> for UserRepository {
         /// #     fn pool(&self) -> &Pool { &self.pool }
         /// # }
-        /// # impl FilterRepository<User> for UserRepository {
-        /// #     fn filter_query_builder<'args>() -> QueryBuilder<'args, Database> {
-        /// #         QueryBuilder::new("SELECT * FROM users WHERE ")
-        /// #     }
-        /// # }
         ///
         /// // Define a specific filter type
         /// sql_filter! {
         ///     #[derive(Clone)]
-        ///     pub struct UserNameFilter {
+        ///     pub struct UserNameFilter<UserRepository> {
         ///         SELECT * FROM users WHERE
         ///         name LIKE String
         ///     }

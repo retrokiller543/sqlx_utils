@@ -1,3 +1,4 @@
+#[doc(hidden)]
 #[macro_export]
 macro_rules! sql_operator {
     ($vis:vis $ident:ident, $lit:literal) => {

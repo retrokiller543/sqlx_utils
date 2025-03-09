@@ -1,0 +1,7 @@
+error: The keyword `WHERE` is reserved and cant be used as a table name
+ --> tests/ui/fail-nightly/missing_table_and_operator.rs:5:23
+  |
+5 |         SELECT * FROM WHERE  // Missing FROM clause
+  |                       ^^^^^
+  |
+  = help: Any identifier is allowed in this location except for `WHERE`

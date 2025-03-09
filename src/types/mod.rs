@@ -6,6 +6,7 @@ mod_def! {!export
     pub(crate) mod db;
 }
 
+#[doc(hidden)]
 macro_rules! db_type {
     ($vis:vis type $ident:ident = [$any_ty:ty, $pg_ty:ty, $mysql_ty:ty, $sqlite_ty:ty]) => {
         #[cfg(feature = "any")]

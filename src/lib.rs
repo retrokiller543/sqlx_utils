@@ -1,4 +1,5 @@
 #![allow(async_fn_in_trait)]
+#![cfg_attr(all(doc, CHANNEL_NIGHTLY), feature(doc_auto_cfg))]
 
 pub mod error;
 pub mod filter;

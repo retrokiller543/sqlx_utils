@@ -1,3 +1,4 @@
+#[doc(hidden)]
 #[macro_export]
 macro_rules! mod_def {
     {$($vis:vis mod $ident:ident $(;)?)+} => {
@@ -17,6 +18,7 @@ mod_def! {
     pub mod batch;
 }
 
+#[doc(hidden)]
 macro_rules! tracing_debug_log {
     {[$(skip($($ident:ident),*) $(,)? )? $($parent:expr,)? $($name:literal,)?] $($tt:tt)*} => {
         #[cfg_attr(feature = "log_err", tracing::instrument($(skip($($ident),*),)?level = "debug", $(parent = &$parent,)? $(name = $name,)? err))]

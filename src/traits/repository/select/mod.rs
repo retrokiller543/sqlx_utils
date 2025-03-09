@@ -1,7 +1,7 @@
 //! Trait for adding select capabilities to a repository
 
-mod_def! {
-    pub mod filter;
+mod_def! {!export
+    pub(crate) mod filter;
 }
 
 use crate::mod_def;

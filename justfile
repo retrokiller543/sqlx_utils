@@ -48,3 +48,32 @@ publish: publish-dry
     cargo publish
     cd ..
     cargo publish
+
+test:
+    cargo test
+
+test-nightly:
+    cargo +nightly test --features nightly
+
+test-try-parse:
+    cargo test --features try-parse
+
+test-try-parse-nightly:
+    cargo +nightly test --features try-parse,nightly
+
+test-w:
+    TRYBUILD=overwrite cargo test
+
+test-nightly-w:
+    TRYBUILD=overwrite cargo +nightly test --features nightly
+
+test-try-parse-w:
+    TRYBUILD=overwrite cargo test --features try-parse
+
+test-try-parse-nightly-w:
+    TRYBUILD=overwrite cargo +nightly test --features try-parse,nightly
+
+test-all: pre-build test test-nightly test-try-parse test-try-parse-nightly
+
+test-all-overwrite: pre-build test-w test-nightly-w test-try-parse-w test-try-parse-nightly-w
+    

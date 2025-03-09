@@ -1,3 +1,4 @@
+#[doc(hidden)]
 #[macro_export]
 macro_rules! sql_impl {
     // Base case with explicit lifetime bounds and where clauses

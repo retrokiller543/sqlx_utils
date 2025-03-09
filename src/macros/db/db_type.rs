@@ -1,3 +1,4 @@
+#[doc(hidden)]
 #[macro_export]
 #[cfg(feature = "any")]
 macro_rules! db_pool {
@@ -6,6 +7,7 @@ macro_rules! db_pool {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 #[cfg(all(
     feature = "postgres",
@@ -17,6 +19,7 @@ macro_rules! db_pool {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 #[cfg(all(
     feature = "mysql",
@@ -28,6 +31,7 @@ macro_rules! db_pool {
     };
 }
 
+#[doc(hidden)]
 #[macro_export]
 #[cfg(all(
     feature = "sqlite",

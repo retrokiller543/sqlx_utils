@@ -18,16 +18,3 @@ error: Unknown operator `I32`, expected one of `AND`, `OR`, or `NOT`
   | |_^
   |
   = note: this error originates in the macro `sql_filter` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error: expected expression, found `.`
- --> tests/ui/fail-try-parse-nightly/invalid_not_in_operator.rs:3:1
-  |
-3 | / sql_filter! {
-4 | |     pub struct UserFilter {
-5 | |         SELECT * FROM users WHERE
-6 | |         age NOT NULL AND i32  // Invalid operator
-7 | |     }
-8 | | }
-  | |_^ expected expression
-  |
-  = note: this error originates in the macro `sql_filter` (in Nightly builds, run with -Z macro-backtrace for more info)
