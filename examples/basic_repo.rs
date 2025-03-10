@@ -18,18 +18,10 @@ sql_filter! {
     }
 }
 
-#[derive(Clone, FromRow)]
+#[derive(Clone, FromRow, Model)]
 pub struct User {
     id: i64,
     name: String,
-}
-
-impl Model for User {
-    type Id = i64;
-
-    fn get_id(&self) -> Option<i64> {
-        Some(self.id)
-    }
 }
 
 repository! {

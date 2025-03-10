@@ -1,8 +1,11 @@
 use crate::filter::expand;
+use derive::model::DeriveModel;
 use proc_macro::TokenStream;
+use quote::ToTokens;
 
 const CRATE_NAME_STR: &str = "sqlx_utils";
 
+mod derive;
 mod error;
 mod filter;
 mod types;
@@ -116,4 +119,16 @@ mod types;
 #[proc_macro]
 pub fn sql_filter(token_stream: TokenStream) -> TokenStream {
     expand(token_stream)
+}
+
+#[proc_macro_error2::proc_macro_error]
+#[proc_macro_derive(Model, attributes(model))]
+pub fn derive_model(input: TokenStream) -> TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    println!("Parsed input: {input:#?}");
+    
+    match DeriveModel::new(input) {
+        Ok(model) => model.to_token_stream().into(),
+        Err(err) => err.into(),
+    }
 }

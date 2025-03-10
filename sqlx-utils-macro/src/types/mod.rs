@@ -11,7 +11,7 @@ pub(crate) mod sql_operator;
 
 /// Gets the crate name as an [`Ident`].
 #[inline]
-fn crate_name() -> Ident {
+pub(crate) fn crate_name() -> Ident {
     Ident::new(CRATE_NAME_STR, Span::call_site())
 }
 

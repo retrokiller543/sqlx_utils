@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
+pub use sqlx_utils_macro::Model;
 
 /// Trait for defining unique identification methods for database models.
 ///
