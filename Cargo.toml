@@ -31,22 +31,22 @@ doc-scrape-examples = true
 unexpected_cfgs = { level = "allow", check-cfg = ['cfg(CHANNEL_NIGHTLY)'] }
 
 [dependencies]
-paste = "1.0.15"
-sqlx = "0.8.3"
+paste = "^1.0"
+sqlx = "^0.8"
 sqlx-utils-macro = { path = "./sqlx-utils-macro", version = "1.1.2", default-features = false }
-thiserror = "2.0.12"
-futures = "0.3.31"
-tracing = "0.1.41"
-cfg-if = "1.0.0"
-async-trait = "0.1.87"
-parking_lot = { version = "0.12.3", features = ["send_guard", "arc_lock"] }
+thiserror = "^2.0"
+futures = "^0.3"
+tracing = "^0.1"
+cfg-if = "^1.0"
+async-trait = "^0.1"
+parking_lot = { version = "^0.12", features = ["send_guard", "arc_lock"] }
 
 [dev-dependencies]
-trybuild = "1.0"
-tokio ={ version = "1.43.0", features = ["rt", "macros", "rt-multi-thread"] }
+trybuild = "^1.0"
+tokio ={ version = "^1", features = ["rt", "macros", "rt-multi-thread"] }
 
 [build-dependencies]
-rustc_version = "0.4.0"
+rustc_version = "^0.4"
 
 [features]
 #default = ["any", "filter_debug_impl", "nightly"]
